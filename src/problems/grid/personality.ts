@@ -67,14 +67,14 @@ export const TRAITS: Trait[] = [
       },
       {
         label: 'forte',
-        apply: (s) => { s.epsilon = 1; s.epsilonDecay = 0.995; },
-        matches: (s) => near(s.epsilon, 1) && near(s.epsilonDecay, 0.995),
+        apply: (s) => { s.epsilon = 1; s.epsilonDecay = 0.997; },
+        matches: (s) => near(s.epsilon, 1) && near(s.epsilonDecay, 0.997),
       },
     ],
     describe: (s) =>
       s.epsilonDecay >= 1
         ? `ε = ${fr(s.epsilon)} en permanence (${Math.round(s.epsilon * 100)} % de pas au hasard, toujours)`
-        : `ε part de ${fr(s.epsilon)} et est multiplié par ${fr(s.epsilonDecay, 3)} à chaque épisode`,
+        : `ε part de ${fr(s.epsilon)} et est multiplié par ${fr(s.epsilonDecay, 3)} à chaque épisode (minimum ${fr(s.epsilonMin)})`,
   },
   {
     id: 'vision',
@@ -83,7 +83,7 @@ export const TRAITS: Trait[] = [
     ends: ['myope', 'prévoyant'],
     help: 'Myope : une récompense lointaine ne compte presque pas, il se contente de ce qui est proche. Prévoyant : il accepte un long trajet pour un meilleur gain.',
     levels: numberLevels(['très myope', 'myope', 'équilibré', 'prévoyant', 'très prévoyant'], GAMMA_LEVELS, (s) => s.gamma, (s, v) => (s.gamma = v)),
-    describe: (s) => `γ = ${fr(s.gamma)} : une récompense à 10 pas vaut ${Math.round(Math.pow(s.gamma, 10) * 100)} % de sa valeur`,
+    describe: (s) => `γ = ${fr(s.gamma)} : une récompense 10 pas plus loin ne compte que pour ${Math.round(Math.pow(s.gamma, 10) * 100)} %`,
   },
   {
     id: 'prudence',

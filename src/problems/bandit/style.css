@@ -1,0 +1,364 @@
+/* Problème « machines à sous » : toutes les classes sont préfixées par bandit- */
+
+.bandit-topbar,
+.bandit-viewbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.bandit-viewbar[hidden],
+.bandit-root [hidden] {
+  display: none !important;
+}
+.bandit-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.bandit-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.bandit-seg button {
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}
+
+/* Grille de machines */
+.bandit-machines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+@media (max-width: 480px) {
+  .bandit-machines {
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: 8px;
+  }
+  .bandit-seg button {
+    padding: 5px 9px;
+    font-size: 0.85rem;
+  }
+}
+
+.bandit-machine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 8px 7px;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--bandit-arm);
+  border-radius: 10px;
+  color: var(--text);
+  min-width: 0;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.bandit-machine.bandit-alt {
+  border-top-style: dashed;
+}
+.bandit-machine:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.bandit-machine:disabled:hover {
+  border-color: var(--border);
+  border-top-color: var(--bandit-arm);
+}
+.bandit-clickable .bandit-machine:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+.bandit-machine.bandit-last {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.bandit-machine.bandit-best {
+  border-color: var(--goal);
+  border-top-color: var(--bandit-arm);
+}
+
+.bandit-m-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+}
+.bandit-m-name {
+  font-weight: 700;
+  color: var(--bandit-arm);
+}
+.bandit-m-tag {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* « Fenêtre » de la machine : estimation actuelle */
+.bandit-m-window {
+  display: block;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 2px;
+  margin-right: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.15s;
+}
+.bandit-win .bandit-m-window {
+  background: rgba(var(--good), 0.3);
+}
+.bandit-lose .bandit-m-window {
+  background: rgba(var(--bad), 0.2);
+}
+
+/* Barre 0–100 % : incertitude, estimation, bonus UCB, vraie probabilité */
+.bandit-m-bar {
+  position: relative;
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  overflow: visible;
+}
+.bandit-m-ci {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 5px;
+  background: var(--bandit-arm);
+  opacity: 0.35;
+}
+.bandit-m-ucb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  background: repeating-linear-gradient(45deg, var(--text) 0 2px, transparent 2px 5px);
+  opacity: 0.45;
+}
+.bandit-m-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--text);
+}
+.bandit-m-truthmark {
+  position: absolute;
+  top: -7px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--goal);
+}
+.bandit-m-plays {
+  display: flex;
+  flex-direction: column;
+}
+.bandit-m-plays,
+.bandit-m-truth {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bandit-m-truth.bandit-revealed {
+  color: var(--goal);
+  font-weight: 600;
+}
+
+/* Levier décoratif à droite */
+.bandit-m-lever {
+  position: absolute;
+  right: 3px;
+  top: 34px;
+  width: 4px;
+  height: 26px;
+  border-radius: 2px;
+  background: var(--muted);
+  transform-origin: 50% 100%;
+  transition: transform 0.15s;
+}
+.bandit-m-lever::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bandit-arm);
+}
+.bandit-pulled .bandit-m-lever {
+  transform: scaleY(-0.6);
+}
+
+/* Légende de la barre */
+.bandit-barlegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 10px;
+}
+.bandit-key {
+  display: inline-block;
+  vertical-align: middle;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+.bandit-key:first-child {
+  margin-left: 0;
+}
+.bandit-key-est {
+  width: 3px;
+  background: var(--text);
+}
+.bandit-key-ci {
+  background: var(--accent);
+  opacity: 0.35;
+}
+.bandit-key-ucb {
+  background: repeating-linear-gradient(45deg, var(--text) 0 2px, transparent 2px 5px);
+  opacity: 0.5;
+}
+.bandit-key-true {
+  width: 0;
+  height: 0;
+  border-radius: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--goal);
+}
+
+/* Graphiques */
+.bandit-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.bandit-chart-head h2 {
+  margin: 0;
+}
+.bandit-chart {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+.bandit-beta {
+  height: 200px;
+}
+.bandit-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.bandit-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bandit-legend-item.bandit-off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.bandit-swatch {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bandit-series);
+}
+.bandit-legend-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Paramètres */
+.bandit-check {
+  margin-top: 14px;
+  font-size: 0.95rem;
+}
+
+/* Résultats du mode « À vous de jouer » */
+.bandit-results {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.bandit-bars {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+.bandit-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 9.5em) minmax(0, 1fr) 3em;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.88rem;
+}
+.bandit-bar-label {
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.bandit-bar-track {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--cell);
+  overflow: hidden;
+}
+.bandit-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 6px;
+}
+.bandit-you .bandit-bar-fill {
+  background: var(--agent);
+}
+.bandit-you {
+  font-weight: 700;
+}
+.bandit-ref .bandit-bar-fill {
+  background: var(--muted);
+  opacity: 0.6;
+}
+.bandit-ref {
+  color: var(--muted);
+}
+.bandit-bar-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.bandit-verdict {
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+.bandit-human-intro {
+  margin-bottom: 4px;
+}

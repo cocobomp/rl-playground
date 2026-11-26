@@ -1,4 +1,5 @@
-import { DEFAULT_PARAMS, Params } from './rl';
+import { DEFAULT_PARAMS, DEFAULT_SMALL_REWARD, Params } from './rl';
+import { applyPersonality } from './personality';
 
 /** Carte par défaut : un chemin court qui frôle les pièges, et un détour sûr. */
 export const DEFAULT_MAP = [
@@ -56,6 +57,85 @@ export const PRESETS: Record<string, Preset> = {
   },
 };
 
+/** Remet des réglages à leurs valeurs par défaut (en place). */
+export function resetSettings(s: Settings): void {
+  Object.assign(s, structuredClone(DEFAULT_SETTINGS));
+}
+
+export interface Scenario {
+  label: string;
+  /** L’histoire racontée, et ce qu’il faut observer. */
+  description: string;
+  map: string[];
+  /** Niveaux des traits de personnalité (indices, voir personality.ts). */
+  personality: Partial<Record<string, number>>;
+  episodes: number;
+  /** Ajustements techniques supplémentaires. */
+  extra?: Partial<Omit<Settings, 'rewards'>> & { rewards?: Partial<Settings['rewards']> };
+}
+
+/**
+ * Cartes « histoires ». Les comportements annoncés sont vérifiés par tests/grid-scenarios.test.ts.
+ * Rappel des niveaux : curiosity 0 faible / 1 moyenne / 2 forte ; vision 0..4 (γ 0,5 → 0,99) ;
+ * prudence 0 téméraire / 1 mesuré / 2 prudent ; impatience 0..4 (coût 0 → −1) ; memory 0..4 (α 0,05 → 1) ; world 0..3.
+ */
+export const SCENARIOS: Record<string, Scenario> = {
+  cliff: {
+    label: 'La falaise',
+    description:
+      'Le chemin le plus court longe le bord d’une falaise (les pièges du bas). L’agent garde 10 % de pas au hasard. ' +
+      'En « mesuré » (Q-learning), le meilleur chemin en pointillés colle au bord : Q-learning évalue le chemin comme s’il ne faisait jamais d’écart. ' +
+      'Passez Prudence sur « prudent » (SARSA, même pénalité) puis réinitialisez : il apprend à marcher un ou deux rangs plus haut, car il sait qu’un écart au hasard le ferait tomber. ' +
+      'Lancez « Comparer » (sous le graphique) pour voir les deux en même temps : pendant l’apprentissage, SARSA gagne en moyenne davantage, car Q-learning tombe plus souvent de la falaise en explorant.',
+    map: ['........', '........', '........', '........', '........', '........', '........', 'STTTTTTG'],
+    personality: { curiosity: 0, vision: 4, prudence: 1, impatience: 4, memory: 2, world: 0 },
+    episodes: 500,
+  },
+  detour: {
+    label: 'Le grand détour',
+    description:
+      'Un couloir de 7 pas bordé de pièges, ou un détour de 13 pas loin de tout danger. En « téméraire », l’agent fonce dans le couloir et y tombe parfois quand il explore. ' +
+      'Passez Prudence sur « prudent » et réinitialisez : il choisit le détour. ' +
+      'Autre expérience : restez « téméraire » mais rendez le monde « un peu glissant » : même Q-learning finit par préférer le détour, car le sol peut le pousser dans un piège.',
+    map: ['........', '.######.', '.#....#.', '.#TTTT#.', 'S......G', '.#TTTT#.', '.######.', '........'],
+    personality: { curiosity: 0, vision: 3, prudence: 0, impatience: 2, memory: 2, world: 0 },
+    episodes: 300,
+  },
+  treasures: {
+    label: 'Deux trésors',
+    description:
+      'Un petit trésor (+3) à 2 pas, un grand (+10) à 6 pas. L’agent « myope » (γ = 0,7) prend le petit : pour lui, +10 dans 6 pas vaut 10 × 0,7⁵ ≈ 1,7, moins que +3 dans 2 pas (3 × 0,7 = 2,1). ' +
+      'Passez la Vision à long terme sur « équilibré » ou « prévoyant » et réinitialisez : il fait le chemin jusqu’au grand trésor. ' +
+      'La curiosité est forte : il faut avoir déjà découvert le grand trésor pour pouvoir le préférer.',
+    map: ['........', '........', '..#.....', '.g.S....', '..#.....', '........', '......G.', '........'],
+    personality: { curiosity: 2, vision: 1, prudence: 0, impatience: 0, memory: 2, world: 0 },
+    episodes: 400,
+  },
+  empty: {
+    label: 'Pièce vide',
+    description:
+      'Une pièce sans obstacle : l’agent apprend en quelques dizaines d’épisodes. Les cases visitées virent d’abord au rouge (chaque pas coûte), ' +
+      'puis le vert se propage depuis l’arrivée vers le départ, épisode après épisode : la récompense « remonte » le chemin, case par case.',
+    map: ['S.......', '........', '........', '........', '........', '........', '........', '.......G'],
+    personality: { curiosity: 1, vision: 3, prudence: 0, impatience: 2, memory: 3, world: 0 },
+    episodes: 100,
+  },
+};
+
+/** Réglages complets d’un scénario (à partir des valeurs par défaut). */
+export function scenarioSettings(sc: Scenario, base: Settings = DEFAULT_SETTINGS): Settings {
+  const s = structuredClone(DEFAULT_SETTINGS);
+  s.speed = base.speed;
+  applyPersonality(s, sc.personality);
+  s.episodes = sc.episodes;
+  if (sc.extra) {
+    const { rewards, ...rest } = sc.extra;
+    Object.assign(s, rest);
+    Object.assign(s.rewards, rewards);
+  }
+  return s;
+}
+
 export interface SliderDef {
   id: string;
   label: string;
@@ -99,11 +179,16 @@ export const SLIDERS: SliderDef[] = [
   },
   {
     id: 'rGoal', label: 'Récompense d’arrivée', min: 0, max: 50, step: 1, group: 'Récompenses',
-    help: 'Gain en atteignant ★. C’est l’objectif que l’agent cherche à maximiser.',
+    help: 'Gain en atteignant le grand trésor ★ (l’arrivée). C’est l’objectif que l’agent cherche à maximiser.',
     get: (s) => s.rewards.goal, set: (s, v) => (s.rewards.goal = v), format: (v) => `+${v}`,
   },
   {
-    id: 'rTrap', label: 'Pénalité de piège', min: -50, max: 0, step: 1,
+    id: 'rSmall', label: 'Récompense du petit trésor', min: 0, max: 50, step: 1,
+    help: 'Gain en atteignant un petit trésor (case verte ronde, l’épisode s’arrête aussi). Utile pour comparer un gain proche et un gain lointain.',
+    get: (s) => s.rewards.small ?? DEFAULT_SMALL_REWARD, set: (s, v) => (s.rewards.small = v), format: (v) => `+${v}`,
+  },
+  {
+    id: 'rTrap', label: 'Pénalité de piège', min: -100, max: 0, step: 1,
     help: 'Perte en tombant dans un piège ✕ (l’épisode s’arrête). Plus elle est forte, plus l’agent s’en éloigne.',
     get: (s) => s.rewards.trap, set: (s, v) => (s.rewards.trap = v), format: (v) => `${v}`,
   },
@@ -119,7 +204,7 @@ export const SLIDERS: SliderDef[] = [
   },
   {
     id: 'episodes', label: 'Nombre d’épisodes', min: 10, max: 2000, step: 10,
-    help: 'Un épisode = une tentative, du départ jusqu’à l’arrivée, un piège ou 200 pas. L’entraînement s’arrête après ce nombre.',
+    help: 'Un épisode = une tentative, du départ jusqu’à un trésor, un piège ou 200 pas. L’entraînement s’arrête après ce nombre.',
     get: (s) => s.episodes, set: (s, v) => (s.episodes = v), format: (v) => String(v),
   },
 ];

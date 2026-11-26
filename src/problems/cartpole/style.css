@@ -1,0 +1,164 @@
+/* Styles propres au pendule inversé : toutes les classes sont préfixées par cartpole- */
+.cartpole-modebar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.cartpole-mode {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.cartpole-mode button {
+  font-weight: 600;
+}
+.cartpole-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.cartpole-speed-label {
+  color: var(--muted);
+}
+.cartpole-speed button {
+  padding: 4px 9px;
+  font-size: 0.85rem;
+}
+.cartpole-stage {
+  aspect-ratio: 16 / 9;
+  min-height: 250px;
+  max-height: 440px;
+}
+.cartpole-replay-info {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 6px 0 0;
+  min-height: 1.3em;
+}
+.cartpole-net {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+.cartpole-chart {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+.cartpole-key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+.cartpole-key-pos {
+  background: var(--series-1);
+}
+.cartpole-key-neg {
+  background: var(--series-2);
+}
+
+/* Jeu humain */
+.cartpole-human-help {
+  margin-top: 10px;
+}
+.cartpole-human-help kbd {
+  font: inherit;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 5px;
+  background: var(--bg);
+  color: var(--text);
+}
+.cartpole-pads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+.cartpole-pad {
+  font-size: 2rem;
+  line-height: 1;
+  padding: 18px 0;
+  border-width: 2px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.cartpole-pad.cartpole-pressed {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Boutons haut niveau */
+.cartpole-intro {
+  margin-bottom: 12px;
+}
+.cartpole-knobs {
+  display: grid;
+  gap: 14px;
+}
+.cartpole-knob {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.cartpole-knob:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.cartpole-knob-name {
+  font-weight: 600;
+}
+.cartpole-knob output {
+  color: var(--accent);
+  font-weight: 600;
+}
+.cartpole-knob output.cartpole-custom {
+  color: var(--muted);
+  font-style: italic;
+}
+.cartpole-seg {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  margin-top: 4px;
+}
+.cartpole-seg button {
+  flex: 1 1 auto;
+  padding: 5px 10px;
+}
+.cartpole-mapping {
+  font-size: 0.82rem;
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.cartpole-disabled {
+  opacity: 0.5;
+}
+.cartpole-disabled button {
+  cursor: not-allowed;
+}
+.cartpole-cont {
+  font-size: 0.9rem;
+  align-items: flex-start;
+}
+.explain-panel h3 {
+  font-size: 1rem;
+  margin: 16px 0 6px;
+}
+.cartpole-root .formula {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
