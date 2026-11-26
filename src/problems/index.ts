@@ -14,8 +14,8 @@ export const PROBLEMS: ProblemInfo[] = [
   {
     id: 'grid',
     title: 'Labyrinthe',
-    tagline: 'Un agent apprend à rejoindre l’arrivée en évitant les pièges.',
-    concept: 'Valeurs apprises case par case, récompenses retardées.',
+    tagline: 'Un agent apprend à rejoindre l’arrivée. Changez sa personnalité : curieux, prudent, pressé…',
+    concept: 'Valeurs apprises case par case, récompenses retardées, Q-learning contre SARSA au bord de la falaise.',
     algorithms: 'Q-learning, SARSA',
     level: 'Découverte',
     load: () => import('./grid/index'),

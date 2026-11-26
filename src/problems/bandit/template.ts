@@ -114,8 +114,9 @@ export const TEMPLATE = `
         la forme la plus pure de ce dilemme en apprentissage par renforcement : une seule situation, plusieurs actions,
         une récompense aléatoire (1 pièce gagnée ou rien).
       </p>
-      <p>Chaque stratégie tient une estimation de la probabilité de gain de chaque machine, mise à jour après chaque partie :</p>
-      <p class="formula">Q ← Q + (r − Q) / n &nbsp;&nbsp;(moyenne de tous les résultats)</p>
+      <p>Chaque stratégie tient une estimation Q de la probabilité de gain de chaque machine, mise à jour après chaque partie
+        (r = 1 si gagné, 0 sinon ; n = nombre de parties sur cette machine). C’est simplement la moyenne de tous ses résultats :</p>
+      <p class="formula">Q ← Q + (r − Q) / n</p>
       <ul>
         <li><strong>Regret</strong> : ce qu’on a perdu, en moyenne, par rapport à quelqu’un qui jouerait toujours la meilleure
           machine. À chaque coup on ajoute (p de la meilleure − p de la machine jouée). Un regret qui se stabilise = la

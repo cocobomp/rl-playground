@@ -73,7 +73,7 @@ export class RobotView {
     container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.05, 200);
-    this.camera.position.set(-0.9, 1.1, 2.4);
+    this.camera.position.set(-1.1, 1.75, 3.2);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.copy(this.target);
     this.controls.enableDamping = true;
@@ -183,7 +183,7 @@ export class RobotView {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d')!;
-    const a = this.theme.cell || '#eef0f4';
+    const a = this.theme.border || '#dde1e8';
     const b = this.theme.panel || '#ffffff';
     ctx.fillStyle = a;
     ctx.fillRect(0, 0, 256, 256);
@@ -217,7 +217,7 @@ export class RobotView {
       this.markers.add(line);
       if (m >= 0) {
         const s = this.label(m === 0 ? 'départ' : `${m} m`);
-        s.position.set(m, 0.004, 1.05);
+        s.position.set(m, 0.004, 0.55);
         this.markers.add(s);
       }
     }
@@ -272,8 +272,9 @@ export class RobotView {
     }
     // Caméra : suit doucement le robot (on déplace la cible et la caméra du même vecteur).
     const t = p.torso.p;
-    const nx = this.target.x + (t.x - this.target.x) * 0.06;
-    const nz = this.target.z + (t.z - this.target.z) * 0.06;
+    // Facteur 0,15 : retard d'environ 10 cm à vitesse de marche, le robot reste centré même sur téléphone.
+    const nx = this.target.x + (t.x - this.target.x) * 0.15;
+    const nz = this.target.z + (t.z - this.target.z) * 0.15;
     const dx = nx - this.target.x;
     const dz = nz - this.target.z;
     this.target.set(nx, 0.4, nz);

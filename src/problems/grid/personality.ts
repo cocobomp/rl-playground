@@ -73,7 +73,7 @@ export const TRAITS: Trait[] = [
     ],
     describe: (s) =>
       s.epsilonDecay >= 1
-        ? `ε = ${fr(s.epsilon)} en permanence (${Math.round(s.epsilon * 100)} % de pas au hasard, toujours)`
+        ? `ε = ${fr(s.epsilon)} en permanence (${Math.round(s.epsilon * 100)} % de pas au hasard, toujours)`
         : `ε part de ${fr(s.epsilon)} et est multiplié par ${fr(s.epsilonDecay, 3)} à chaque épisode (minimum ${fr(s.epsilonMin)})`,
   },
   {
@@ -83,7 +83,10 @@ export const TRAITS: Trait[] = [
     ends: ['myope', 'prévoyant'],
     help: 'Myope : une récompense lointaine ne compte presque pas, il se contente de ce qui est proche. Prévoyant : il accepte un long trajet pour un meilleur gain.',
     levels: numberLevels(['très myope', 'myope', 'équilibré', 'prévoyant', 'très prévoyant'], GAMMA_LEVELS, (s) => s.gamma, (s, v) => (s.gamma = v)),
-    describe: (s) => `γ = ${fr(s.gamma)} : une récompense 10 pas plus loin ne compte que pour ${Math.round(Math.pow(s.gamma, 10) * 100)} %`,
+    describe: (s) => {
+      const pct = Math.pow(s.gamma, 10) * 100;
+      return `γ = ${fr(s.gamma)} : une récompense 10 pas plus loin ne compte que pour ${pct < 1 ? 'moins de 1' : Math.round(pct)} %`;
+    },
   },
   {
     id: 'prudence',
@@ -126,7 +129,7 @@ export const TRAITS: Trait[] = [
     ends: ['retient lentement', 'change d’avis vite'],
     help: 'Lentement : chaque expérience ne corrige qu’un peu ses estimations (stable mais long). Vite : la dernière expérience écrase tout (rapide mais instable, surtout si le sol glisse).',
     levels: numberLevels(['très lente', 'lente', 'modérée', 'rapide', 'instantanée'], ALPHA_LEVELS, (s) => s.alpha, (s, v) => (s.alpha = v)),
-    describe: (s) => `α = ${fr(s.alpha)} : chaque expérience corrige ${Math.round(s.alpha * 100)} % de l’écart entre attente et réalité`,
+    describe: (s) => `α = ${fr(s.alpha)} : chaque expérience corrige ${Math.round(s.alpha * 100)} % de l’écart entre attente et réalité`,
   },
   {
     id: 'world',
@@ -135,7 +138,7 @@ export const TRAITS: Trait[] = [
     ends: ['sol stable', 'sol très glissant'],
     help: 'Sur un sol glissant, l’agent part parfois dans une direction au hasard malgré lui : frôler un piège devient vraiment dangereux, même pour Q-learning.',
     levels: numberLevels(['stable', 'un peu glissant', 'glissant', 'très glissant'], SLIP_LEVELS, (s) => s.slip, (s, v) => (s.slip = v)),
-    describe: (s) => `glissance = ${Math.round(s.slip * 100)} % des actions remplacées par une direction au hasard`,
+    describe: (s) => `glissance = ${Math.round(s.slip * 100)} % des actions remplacées par une direction au hasard`,
   },
 ];
 

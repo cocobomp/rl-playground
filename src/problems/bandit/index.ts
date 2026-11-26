@@ -528,6 +528,10 @@ export function mount(root: HTMLElement): () => void {
     },
   });
   agentBox.append(curiositySlider.el);
+  /** ε ou c réglés à la main : le niveau de curiosité affiché ne correspond plus. */
+  function markCuriosityCustom() {
+    curiositySlider.el.querySelector('output')!.textContent = `expert (ε = ${fr(params.epsilon)}, c = ${fr(params.c)})`;
+  }
 
   // Experts
   const group = (t: string) => {
@@ -540,7 +544,10 @@ export function mount(root: HTMLElement): () => void {
     label: 'ε (ε-greedy)',
     help: 'Probabilité de jouer une machine au hasard à chaque coup.',
     min: 0, max: 0.5, step: 0.01, value: params.epsilon, format: (v) => fr(v),
-    onInput: (v) => (params.epsilon = v),
+    onInput: (v) => {
+      params.epsilon = v;
+      markCuriosityCustom();
+    },
   });
   const cSlider = createSlider({
     label: 'c (UCB)',
@@ -548,6 +555,7 @@ export function mount(root: HTMLElement): () => void {
     min: 0, max: 4, step: 0.01, value: params.c, format: (v) => fr(v),
     onInput: (v) => {
       params.c = v;
+      markCuriosityCustom();
       dirty = true;
     },
   });

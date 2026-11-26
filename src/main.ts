@@ -78,6 +78,8 @@ async function route() {
   cleanup = null;
   app.replaceChildren();
   nav.querySelectorAll('a').forEach((a) => a.classList.toggle('active', (a as HTMLElement).dataset.id === id));
+  // Sur mobile le menu défile horizontalement : on amène l'onglet actif en vue.
+  nav.querySelector('a.active')?.scrollIntoView({ block: 'nearest', inline: 'center' });
 
   const problem = PROBLEMS.find((p) => p.id === id);
   if (!problem) {

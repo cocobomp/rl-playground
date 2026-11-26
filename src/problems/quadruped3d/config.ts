@@ -62,7 +62,7 @@ export const INTERVENTIONS: Intervention[] = [
   {
     id: 'heavy',
     label: 'Corps plus lourd',
-    help: `Le tronc pèse ${HEAVY_MASS} fois plus (comme un sac à dos) : les mêmes moteurs soulèvent moins facilement le corps et les chutes viennent plus vite.`,
+    help: `Le tronc pèse ${HEAVY_MASS} fois plus (comme un sac à dos) : les mêmes moteurs soulèvent moins facilement le corps, qui s’affaisse : la démarche apprise perd une bonne partie de son efficacité.`,
     get: (w) => w.bodyMass > 1,
     set: (w, on) => (w.bodyMass = on ? HEAVY_MASS : 1),
   },
@@ -159,7 +159,7 @@ export const SCENARIOS: Scenario[] = [
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Le genou arrière droit est bloqué tendu. Le cerveau envoie les mêmes consignes qu’avant, mais une patte ne plie plus : la poussée est déséquilibrée et le robot piétine, dévie, voire recule. Regardez le nombre « distance » dans l’image, puis lancez « Réapprendre ».',
+      'Le genou arrière droit est bloqué tendu. Le cerveau envoie les mêmes consignes qu’avant, mais une patte ne plie plus : la poussée est déséquilibrée et le robot trébuche, dévie ou tombe. Lancez « Réapprendre » : l’évolution cherche une démarche qui balance cette patte raide depuis la hanche. C’est plus difficile qu’il n’y paraît : la note monte d’abord parce que le robot tombe moins vite, et il faut souvent plusieurs centaines de générations avant une vraie démarche.',
   },
   {
     id: 'scratch',

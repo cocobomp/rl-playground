@@ -8,11 +8,12 @@ import {
   X_MAX,
   X_MIN,
   canClimbDirectly,
+  directClimb,
   energy,
   physicsStep,
   shapingBonus,
 } from '../src/problems/mountaincar/env';
-import { scenarioSettings, TRAITS, detectLevel, defaultSettings } from '../src/problems/mountaincar/config';
+import { scenarioSettings, TRAITS, detectLevel, defaultSettings, describeEngine, formatNumber } from '../src/problems/mountaincar/config';
 import { runTurboBatch } from '../src/problems/mountaincar/worker';
 
 const LEFT = 0, NONE = 1, RIGHT = 2;
@@ -266,5 +267,24 @@ describe('scénarios (ce que racontent les textes)', () => {
     // avec la graine 2, elle a d’abord su arriver, puis a « préféré » le bonus
     const tr2 = train(scenarioSettings('badreward'), 150, 2);
     expect(tr2.history.slice(0, 10).every((r) => r.goal)).toBe(true);
+  });
+});
+
+describe('montée directe (texte « Moteur plus puissant »)', () => {
+  it('×1 : impossible ; ×2 : seulement depuis la gauche ; ×2,2 : partout malgré une pente plus forte que le moteur', () => {
+    expect(directClimb(1, 1).fraction).toBe(0);
+    const two = directClimb(2, 1);
+    expect(two.fraction).toBeGreaterThan(0);
+    expect(two.fraction).toBeLessThan(1);
+    expect(canClimbDirectly(2.2, 1)).toBe(false);
+    expect(directClimb(2.2, 1).fraction).toBe(1);
+    expect(describeEngine({ ...DEFAULT_PHYSICS })).toContain('impossible');
+    expect(describeEngine({ ...DEFAULT_PHYSICS, force: 2 })).toContain('seulement');
+    expect(describeEngine({ ...DEFAULT_PHYSICS, force: 2.25 })).toContain('d’où que l’on parte');
+    expect(describeEngine({ ...DEFAULT_PHYSICS, force: 3 })).toContain('l’emporte partout');
+  });
+  it('pas de « −0 » affiché', () => {
+    expect(formatNumber(-0.2, 0)).toBe('0');
+    expect(formatNumber(-1.5, 1)).toBe('−1,5');
   });
 });

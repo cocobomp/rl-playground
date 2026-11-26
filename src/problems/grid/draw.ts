@@ -1,6 +1,7 @@
 // Dessin d'une grille et de ce que l'agent a appris (utilisé par la grande grille et par la comparaison).
 import { ACTIONS, DEFAULT_SMALL_REWARD, GridWorld, Trainer } from './rl';
 import { prepareCanvas, readTheme, ThemeColors } from '../../shared/ui';
+import { fr } from './personality';
 
 export interface BoardColors extends ThemeColors {
   /** Couleur du texte posé sur une case colorée (trésor, piège). */
@@ -98,7 +99,7 @@ export function drawBoard(
       if (opts.values) {
         ctx.fillStyle = colors.text;
         ctx.font = `${cs * 0.2}px system-ui, sans-serif`;
-        ctx.fillText(trainer.value(s).toFixed(1), x + cs / 2, y + cs * 0.84);
+        ctx.fillText(fr(trainer.value(s), 1), x + cs / 2, y + cs * 0.84);
       }
     }
   }

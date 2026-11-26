@@ -60,6 +60,33 @@ export function canClimbDirectly(force: number, gravity: number): boolean {
   return ENGINE * force > GRAVITY * gravity;
 }
 
+/**
+ * Depuis quelle part des positions de départ (x₀ ∈ [−0,6 ; −0,4], vitesse nulle) le réflexe « toujours à droite »
+ * atteint-il le drapeau ? Même quand la pente l’emporte au point le plus raide, la descente depuis le départ
+ * peut donner assez d’élan : on simule donc plutôt que de comparer seulement les forces.
+ * Renvoie la fraction de départs réussis et le départ réussi le plus à droite (NaN si aucun).
+ */
+export function directClimb(force: number, gravity: number, samples = 21, maxSteps = 1000): { fraction: number; maxStart: number } {
+  let ok = 0;
+  let maxStart = NaN;
+  for (let i = 0; i < samples; i++) {
+    const x0 = -0.6 + (0.2 * i) / (samples - 1);
+    let x = x0;
+    let v = 0;
+    for (let t = 0; t < maxSteps; t++) {
+      const r = physicsStep(x, v, 2, force, gravity);
+      x = r.x;
+      v = r.v;
+      if (x >= GOAL_X) {
+        ok++;
+        maxStart = x0;
+        break;
+      }
+    }
+  }
+  return { fraction: ok / samples, maxStart };
+}
+
 /** Énergie mécanique normalisée (potentiel pour le coup de pouce « bien conçu »). */
 export function energy(x: number, v: number, gravity = 1): number {
   // Énergie potentielle U = 0,0025·g/3 · sin(3x) (dU/dx = 0,0025·g·cos 3x), cinétique v²/2.

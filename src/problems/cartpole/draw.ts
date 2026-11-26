@@ -256,10 +256,15 @@ export function drawNetwork(canvas: HTMLCanvasElement, spec: PolicySpec, obs: Ar
   const sizes = spec.sizes;
   const layers = forwardLayers(sizes, spec.params, obs, spec.brain === 'softmax' ? 'sigmoid' : 'tanh');
   const narrow = w < 420;
-  const labelW = narrow ? 96 : 124;
-  const outW = narrow ? 74 : 104;
-  const x0 = labelW + 8;
-  const x1 = w - outW - 8;
+  const fontPx = narrow ? 11 : 12;
+  // Largeurs réservées aux étiquettes, mesurées (aucun texte coupé, même à 360 px).
+  ctx.font = `${fontPx}px system-ui, sans-serif`;
+  const labelW = Math.max(...INPUT_LABELS.map((l) => ctx.measureText(l).width)) + 8;
+  ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
+  const outW = Math.max(ctx.measureText(spec.brain === 'softmax' ? 'P(pousser →)' : 'pousser ← / →').width, narrow ? 50 : 60) + 6;
+  const r0 = 13;
+  const x0 = labelW + r0 + 6;
+  const x1 = w - outW - r0 - 6;
   const top = sizes.length === 3 ? 26 : 18;
   const bottom = h - 14;
   const xs = sizes.map((_, l) => (sizes.length === 1 ? x0 : x0 + ((x1 - x0) * l) / (sizes.length - 1)));

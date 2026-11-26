@@ -156,7 +156,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'random',
     autoTrain: true,
     description:
-      'Un cerveau tiré au hasard : au début, le robot s’effondre en une seconde. L’apprentissage démarre tout de suite. Suivez la courbe : en général, il tient debout après quelques dizaines de générations, puis avance de plus en plus vite. Ajoutez une blessure quand vous voulez.',
+      'Un cerveau tiré au hasard : au début, le robot s’effondre en une ou deux secondes. L’apprentissage démarre tout de suite. Suivez la courbe : en général, il tient debout après quelques dizaines de générations, puis avance de plus en plus vite. Ajoutez une blessure quand vous voulez.',
   },
 };
 

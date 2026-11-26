@@ -4,7 +4,7 @@ export const TEMPLATE = `
   <div class="col">
     <section class="panel" aria-label="Robot en 3D">
       <p class="quadruped3d-badge"><strong>Expérimental.</strong> En 3D, chaque essai simule 8 secondes de physique complète :
-        l’apprentissage est nettement plus lent qu’en 2D (environ une génération par seconde selon votre appareil).</p>
+        l’apprentissage est nettement plus lent qu’en 2D (de l’ordre d’une génération par seconde, selon votre appareil).</p>
       <div class="quadruped3d-stage" id="quadruped3d-stage">
         <div class="quadruped3d-hud" id="quadruped3d-hud" aria-live="off"></div>
         <p class="quadruped3d-loading" id="quadruped3d-loading">Chargement du moteur physique…</p>
@@ -21,7 +21,7 @@ export const TEMPLATE = `
       <dl class="stats">
         <div><dt>Génération</dt><dd id="quadruped3d-st-gen">0</dd></div>
         <div><dt>Distance (8 s)</dt><dd id="quadruped3d-st-dist">–</dd></div>
-        <div><dt>Record</dt><dd id="quadruped3d-st-best">–</dd></div>
+        <div title="Meilleure distance en 8 s depuis le dernier changement de cerveau ou de monde"><dt>Record</dt><dd id="quadruped3d-st-best">–</dd></div>
         <div><dt>Énergie (8 s)</dt><dd id="quadruped3d-st-energy">–</dd></div>
       </dl>
       <p id="quadruped3d-status" class="status" role="status"></p>
@@ -89,7 +89,7 @@ export const TEMPLATE = `
         le réseau n’a plus qu’à apprendre quelle posture prendre à chaque instant du cycle, corrigée par ce qu’il ressent.
       </p>
       <p>Il n’y a pas de professeur : seule une note est donnée à la fin de chaque essai de 8 secondes.</p>
-      <p class="formula">note = distance − a × énergie − b × inclinaison − pénalité de chute</p>
+      <p class="formula">note = distance − a·énergie − b·inclinaison − chute</p>
       <ul>
         <li><strong>Stratégie d’évolution</strong> : à chaque génération, on crée des variantes du cerveau en ajoutant un petit
           bruit aléatoire à tous ses poids (par paires opposées +bruit / −bruit), on les essaie toutes, puis on déplace le cerveau
@@ -102,7 +102,9 @@ export const TEMPLATE = `
           Avec une patte en moins ou un genou raide, ces mêmes gestes déséquilibrent le robot. L’évolution repart du cerveau
           existant : elle ne réinvente pas tout, elle ajuste ce qui sait déjà presque marcher, ce qui va bien plus vite que de zéro.</li>
         <li><strong>Pré-entraînement</strong> : le cerveau chargé au départ a été entraîné hors ligne avec exactement la même
-          simulation, puis enregistré. La simulation est déterministe : un même cerveau refait exactement le même essai.</li>
+          simulation, puis enregistré (environ 25 minutes de calcul). Sa généalogie est instructive : appris de zéro sur le robot intact,
+          puis adapté à la patte cassée, puis réadapté au robot intact ; ce détour lui a fait découvrir une démarche plus rapide que celle
+          trouvée directement. La simulation est déterministe : un même cerveau refait exactement le même essai.</li>
       </ul>
     </section>
   </div>

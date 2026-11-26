@@ -38,13 +38,14 @@ export const PRESETS: Record<string, Preset> = {
     label: 'Explore trop',
     description:
       'ε = 1 et aucune décroissance : l’agent joue toujours au hasard. La courbe reste plate et basse, il ne profite jamais de ce qu’il sait. ' +
-      'Avec Q-learning, regardez pourtant les flèches : elles finissent souvent par indiquer le bon chemin, car Q-learning apprend la meilleure stratégie même en se promenant au hasard.',
-    settings: { alpha: 0.3, gamma: 0.95, epsilon: 1, epsilonDecay: 1, slip: 0, episodes: 300 },
+      'Avec Q-learning, regardez pourtant les flèches (passez la vitesse au maximum) : au bout de 1 000 à 2 000 épisodes, le meilleur chemin en pointillés rejoint l’arrivée, ' +
+      'car Q-learning apprend la meilleure stratégie même en se promenant au hasard… mais très lentement, puisque les cases lointaines sont rarement visitées.',
+    settings: { alpha: 0.3, gamma: 0.95, epsilon: 1, epsilonDecay: 1, slip: 0, episodes: 2000 },
   },
   fast: {
     label: 'Apprend trop vite',
     description:
-      'α = 1 (chaque expérience écrase la précédente), ε chute en quelques épisodes, et le monde est glissant (20 % des actions partent au hasard). ' +
+      'α = 1 (chaque expérience écrase la précédente), ε chute en quelques épisodes, et le monde est glissant (20 % des actions partent au hasard). ' +
       'Les valeurs sautent d’un extrême à l’autre, l’agent se fige trop tôt sur un chemin et la courbe reste chaotique.',
     settings: { alpha: 1, gamma: 0.95, epsilon: 0.5, epsilonDecay: 0.8, slip: 0.2, episodes: 300 },
   },
@@ -83,12 +84,12 @@ export const SCENARIOS: Record<string, Scenario> = {
   cliff: {
     label: 'La falaise',
     description:
-      'Le chemin le plus court longe le bord d’une falaise (les pièges du bas). L’agent garde 10 % de pas au hasard. ' +
+      'Le chemin le plus court longe le bord d’une falaise (les pièges du bas). L’agent garde 10 % de pas au hasard et une mémoire lente (α = 0,1), pour des estimations stables. ' +
       'En « mesuré » (Q-learning), le meilleur chemin en pointillés colle au bord : Q-learning évalue le chemin comme s’il ne faisait jamais d’écart. ' +
-      'Passez Prudence sur « prudent » (SARSA, même pénalité) puis réinitialisez : il apprend à marcher un ou deux rangs plus haut, car il sait qu’un écart au hasard le ferait tomber. ' +
+      'Passez Prudence sur « prudent » (SARSA, même pénalité) puis réinitialisez : il apprend à marcher un rang plus haut, car il sait qu’un écart au hasard le ferait tomber. ' +
       'Lancez « Comparer » (sous le graphique) pour voir les deux en même temps : pendant l’apprentissage, SARSA gagne en moyenne davantage, car Q-learning tombe plus souvent de la falaise en explorant.',
     map: ['........', '........', '........', '........', '........', '........', '........', 'STTTTTTG'],
-    personality: { curiosity: 0, vision: 4, prudence: 1, impatience: 4, memory: 2, world: 0 },
+    personality: { curiosity: 0, vision: 4, prudence: 1, impatience: 4, memory: 1, world: 0 },
     episodes: 500,
   },
   detour: {
@@ -170,12 +171,12 @@ export const SLIDERS: SliderDef[] = [
   {
     id: 'epsilonDecay', label: 'Décroissance de ε', min: 0.8, max: 1, step: 0.005,
     help: 'ε est multiplié par ce nombre après chaque épisode : on explore beaucoup au début, puis de moins en moins. 1 = ε ne baisse jamais.',
-    get: (s) => s.epsilonDecay, set: (s, v) => (s.epsilonDecay = v), format: (v) => v.toFixed(3),
+    get: (s) => s.epsilonDecay, set: (s, v) => (s.epsilonDecay = v), format: (v) => v.toFixed(3).replace('.', ','),
   },
   {
     id: 'slip', label: 'Glissance du sol', min: 0, max: 0.5, step: 0.01,
     help: 'Probabilité que l’agent parte dans une direction au hasard malgré lui : un monde imprévisible, où frôler un piège devient risqué.',
-    get: (s) => s.slip, set: (s, v) => (s.slip = v), format: (v) => `${Math.round(v * 100)} %`,
+    get: (s) => s.slip, set: (s, v) => (s.slip = v), format: (v) => `${Math.round(v * 100)} %`,
   },
   {
     id: 'rGoal', label: 'Récompense d’arrivée', min: 0, max: 50, step: 1, group: 'Récompenses',
@@ -195,7 +196,7 @@ export const SLIDERS: SliderDef[] = [
   {
     id: 'rStep', label: 'Coût par pas', min: -2, max: 0, step: 0.05,
     help: 'Petite perte à chaque déplacement : pousse l’agent à trouver le chemin le plus court au lieu de flâner.',
-    get: (s) => s.rewards.step, set: (s, v) => (s.rewards.step = v), format: (v) => v.toFixed(2),
+    get: (s) => s.rewards.step, set: (s, v) => (s.rewards.step = v), format: (v) => v.toFixed(2).replace('.', ',').replace('-', '−'),
   },
   {
     id: 'speed', label: 'Vitesse d’animation', min: 1, max: 10, step: 1, group: 'Simulation',

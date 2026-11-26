@@ -38,7 +38,7 @@ export const TEMPLATE = `
       <div class="legend mountaincar-legend" id="mountaincar-legend"></div>
       <p class="help">
         Chaque point est un état : la <strong>position</strong> (horizontalement) et la <strong>vitesse</strong> (verticalement,
-        vers le haut = vers la droite). La ligne orange est le trajet de l’épisode : une <strong>spirale</strong> qui s’élargit,
+        vers le haut = vers la droite). Le trait coloré est le trajet de l’épisode : une <strong>spirale</strong> qui s’élargit,
         car chaque aller-retour gagne de l’élan, jusqu’à toucher le bord droit (le drapeau). Cliquez sur la carte pour tester
         la stratégie apprise à partir de cet état.
       </p>
@@ -94,7 +94,7 @@ export const TEMPLATE = `
         La voiture connaît sa <strong>position</strong> x et sa <strong>vitesse</strong> v. À chaque pas, elle choisit : pousser à
         gauche, ne rien faire ou pousser à droite. Le moteur est faible, la pente forte :
       </p>
-      <p class="formula">v ← v + 0,001 · action − 0,0025 · cos(3x)&nbsp;&nbsp;&nbsp;x ← x + v</p>
+      <p class="formula">v ← v + 0,001 · action<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;− 0,0025 · cos(3x)<br />x ← x + v</p>
       <p>
         Chaque pas coûte <strong>−1</strong> ; atteindre le drapeau (x ≥ 0,5) termine l’épisode. Aucun indice en chemin :
         c’est une <strong>récompense rare</strong>. Et la bonne stratégie est <strong>contre-intuitive</strong> : pour aller à
@@ -104,9 +104,9 @@ export const TEMPLATE = `
       <p>
         Il y a une infinité d’états (x et v sont des nombres réels) : impossible de tenir un tableau case par case comme dans le
         labyrinthe. On recouvre donc le plan (x, v) de plusieurs grilles de tuiles (par défaut 8 grilles de 8 × 8), chacune légèrement décalée. Un état active une
-        tuile par grille, et l’estimation est la somme de leurs poids :
+        tuile par grille (n tuiles actives pour n grilles), et l’estimation est la somme de leurs poids :
       </p>
-      <p class="formula">Q(s, a) = w<sub>a</sub>[tuile₁(s)] + … + w<sub>a</sub>[tuile₈(s)]</p>
+      <p class="formula">Q(s, a) = w<sub>a</sub>[tuile₁(s)] + …<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ w<sub>a</sub>[tuile<sub>n</sub>(s)]</p>
       <p>
         Deux états proches partagent la plupart de leurs tuiles : ce qui est appris quelque part se <strong>généralise</strong> aux
         alentours. C’est une <strong>approximation de fonction</strong>, la même idée que les réseaux de neurones des problèmes
@@ -114,7 +114,8 @@ export const TEMPLATE = `
       </p>
       <h3>Apprendre : Sarsa(λ)</h3>
       <p>Après chaque pas, l’agent compare ce qu’il prévoyait à ce qu’il vient de vivre :</p>
-      <p class="formula">δ = r + γ · Q(s′, a′) − Q(s, a)&nbsp;&nbsp;&nbsp;w ← w + (α / 8) · δ · e</p>
+      <p class="formula">δ = r + γ · Q(s′, a′) − Q(s, a)<br />w ← w + (α / n) · δ · e</p>
+      <p>(n est le nombre de grilles : chaque poids actif reçoit sa part de la correction.)</p>
       <p>
         Les <strong>traces d’éligibilité</strong> e retiennent les tuiles visitées récemment (en s’effaçant d’un facteur γλ à chaque
         pas) : quand la voiture atteint enfin le drapeau, le mérite remonte d’un coup vers les dizaines de décisions précédentes,

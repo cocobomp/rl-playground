@@ -15,7 +15,7 @@ import {
   isHealthy,
   worldLabel,
 } from './config';
-import { DT, EPISODE_SECONDS, HEALTHY, OBS_SIZE, Walker, WorldConfig } from './env';
+import { DT, EPISODE_SECONDS, HEALTHY, OBS_SIZE, Walker, WorldConfig, runEpisode } from './env';
 import { BrainJSON, policyFromParams, randomParams } from './agent';
 import { TrainerPool, GenerationSummary } from './pool';
 import { RobotView, drawStage } from './draw';
@@ -179,6 +179,11 @@ export function mount(root: HTMLElement): () => void {
 
   function restartReplay() {
     replay = { walker: new Walker(config), policy: policyFromParams(champion.params), champion };
+    // La simulation est déterministe : on calcule tout de suite le résultat de l'essai qui commence
+    // (≈ 10 ms), pour que les tuiles ne restent pas vides pendant la rediffusion.
+    const r = runEpisode(replay.policy, config, settings.objectives);
+    lastResult = { distance: r.distance, time: r.time, energy: r.energy, fell: r.fell };
+    updateStats();
     ghost = ghostWanted() ? { walker: new Walker(HEALTHY), policy: policyFromParams(ghostParams) } : null;
     holdUntil = 0;
     acc = 0;
@@ -448,7 +453,7 @@ export function mount(root: HTMLElement): () => void {
       label: 'Priorité',
       kind: 'range',
       ends: ['Aller vite', 'Économiser l’énergie'],
-      help: 'Plus vous allez vers l’économie, plus chaque joule dépensé par les moteurs coûte de points. Observez : la démarche devient plus lente et plus souple, avec moins de gestes brusques.',
+      help: 'Plus vous allez vers l’économie, plus chaque joule dépensé par les moteurs coûte de points. Observez après quelques dizaines de générations : l’énergie dépensée baisse dans le tableau des mesures, et en général la vitesse aussi.',
       levels: PRIORITY_LEVELS,
       get: () => settings.objectives.energy,
       set: (v) => (settings.objectives.energy = v),
@@ -604,7 +609,7 @@ export function mount(root: HTMLElement): () => void {
   addSlider('Pénalité de chute', 'Points retirés si le torse touche le sol ou bascule (l’essai s’arrête alors).', 0, 30, 1, () => settings.objectives.fall, (v) => (settings.objectives.fall = v), (v) => fmt(v, 0));
   addSlider('Poids de l’inclinaison', 'Points retirés par radian d’inclinaison moyenne du torse.', 0, 10, 0.5, () => settings.objectives.upright, (v) => (settings.objectives.upright = v), (v) => fmt(v, 1));
   addGroup('Stratégie d’évolution');
-  addSlider('Taille de la population', 'Nombre de variantes essayées par génération (paire). Plus grand : estimation plus fiable de la bonne direction, mais chaque génération est plus longue.', 8, 96, 2, () => settings.es.popSize, (v) => (settings.es.popSize = v), (v) => String(v));
+  addSlider('Taille de la population', 'Nombre de variantes essayées par génération (nombre pair : chaque bruit est essayé avec + et −). Plus grand : estimation plus fiable de la bonne direction, mais chaque génération est plus longue.', 8, 96, 2, () => settings.es.popSize, (v) => (settings.es.popSize = v), (v) => String(v));
   addSlider('Bruit σ (curiosité)', 'Écart-type du bruit ajouté aux poids pour créer les variantes.', 0.01, 0.3, 0.01, () => settings.es.sigma, (v) => (settings.es.sigma = v), (v) => fmt(v, 2));
   addSlider('Taux d’apprentissage', 'Taille du pas de mise à jour des poids (optimiseur Adam). Trop grand : le cerveau oscille ; trop petit : progrès très lents.', 0.002, 0.1, 0.002, () => settings.es.lr, (v) => (settings.es.lr = v), (v) => fmt(v, 3));
   const wInfo = document.createElement('p');

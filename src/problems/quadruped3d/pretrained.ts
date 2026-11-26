@@ -9,6 +9,8 @@ export interface PretrainedBrain {
   generation: number;
   distance: number;
   fitness: number;
+  /** Généalogie de l'entraînement hors ligne. */
+  history: string;
   params: number[];
 }
 

@@ -75,7 +75,7 @@ describe('Scénario « La falaise » : Q-learning longe le bord, SARSA s’en é
     const runs = SEEDS.map((seed) => train(sc, {}, seed));
     runs.forEach((r) => expect(r.end).toBe('goal'));
     const hugging = runs.filter((r) => highestRow(r) === 6 && r.steps === 9).length;
-    expect(hugging).toBeGreaterThanOrEqual(8);
+    expect(hugging).toBe(SEEDS.length);
   });
 
   it('SARSA (« prudent », même pénalité) : il marche au moins un rang plus haut', () => {
@@ -83,6 +83,7 @@ describe('Scénario « La falaise » : Q-learning longe le bord, SARSA s’en é
     runs.forEach((r) => {
       expect(r.end).toBe('goal');
       expect(highestRow(r)).toBeLessThanOrEqual(5);
+      expect(r.steps).toBeGreaterThan(9);
     });
   });
 });
@@ -140,5 +141,22 @@ describe('Scénario « Pièce vide »', () => {
       const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
       expect(avg(r.t.history.slice(-20))).toBeGreaterThan(avg(r.t.history.slice(0, 20)));
     }
+  });
+});
+
+describe('Expérience « Explore trop » : Q-learning apprend quand même, lentement', () => {
+  it('après les épisodes prévus, le meilleur chemin rejoint l’arrivée', async () => {
+    const { DEFAULT_MAP, PRESETS } = await import('../src/problems/grid/config');
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const s = structuredClone(DEFAULT_SETTINGS);
+      Object.assign(s, PRESETS.explore.settings);
+      const world = GridWorld.fromStrings(DEFAULT_MAP);
+      const t = new Trainer(world, s, mulberry32(seed));
+      for (let i = 0; i < s.episodes; i++) t.runEpisode();
+      const p = t.greedyPath();
+      if (world.cells[p[p.length - 1]] === 'goal') reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(4);
   });
 });

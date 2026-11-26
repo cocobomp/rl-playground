@@ -1,6 +1,9 @@
 // Pré-entraînement hors ligne du robot 3D (même env.ts que le navigateur).
 // Usage : npx --yes tsx scripts/quadruped3d/train.ts --name healthy --minutes 10 --threads 3
 //         [--world broken|locked|heavy|slippery|weak] [--init src/problems/quadruped3d/pretrained/healthy.json]
+//         [--pop 24] [--seed 1] [--history "texte affiché dans l’interface"]
+// Généalogie des cerveaux livrés : healthy (13 min, de zéro, pop 32) → broken (7 min, --world broken)
+// → healthy final (2,5 min, --init broken.json, monde intact). Voir le champ « history » des JSON.
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -33,6 +36,7 @@ if (!isMainThread) {
   const seed = Number(arg('seed', '1'));
   const worldKey = arg('world', 'healthy');
   const initPath = arg('init', '');
+  const history = arg('history', '');
   const pop = Number(arg('pop', String(DEFAULT_HYPER.popSize)));
   const world: WorldParams = { ...DEFAULT_WORLD, ...(WORLD_PRESETS[worldKey] ?? {}) };
   await initPhysics();
@@ -85,6 +89,7 @@ if (!isMainThread) {
       generation: best.gen,
       distance: +check.distance.toFixed(3),
       fitness: +check.fitness.toFixed(3),
+      history: history || `${best.gen} générations (monde « ${worldKey} »)`,
       params: Array.from(best.params, (p) => +p.toFixed(5)),
     };
     // Vérification : les poids arrondis donnent-ils le même comportement ?

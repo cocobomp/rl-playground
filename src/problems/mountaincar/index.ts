@@ -131,7 +131,7 @@ export function mount(root: HTMLElement): () => void {
   const world = $('world');
   const forceSlider = makeSlider(world, 'force', {
     label: 'Moteur plus puissant',
-    help: 'Multiplie la poussée du moteur. Au-delà de ×2,5 (à gravité normale), plus besoin d’élan : la spirale disparaît de la carte des phases.',
+    help: 'Multiplie la poussée du moteur. À gravité normale, vers ×2 foncer à droite commence à suffire : la spirale disparaît de la carte des phases. Au-delà de ×2,5, le moteur l’emporte même sur la partie la plus raide.',
     min: 0.5, max: 4, step: 0.25,
     format: (v) => `×${fr(v, 2)}`,
     onInput: (v) => {

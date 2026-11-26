@@ -53,7 +53,7 @@ export const STRATEGY_HELP: Record<StrategyId, string> = {
   ucb:
     'UCB : « optimisme face à l’incertitude ». Chaque machine reçoit un bonus d’autant plus grand qu’elle a été peu jouée (zone hachurée de la barre) ; il joue la plus haute estimation + bonus.',
   thompson:
-    'Thompson : tient pour chaque machine une loi de croyance (courbe Beta), en tire une valeur au hasard par machine et joue la plus haute. Une machine est donc jouée avec la probabilité qu’elle soit la meilleure.',
+    'Thompson : tient pour chaque machine une loi de croyance (courbe Beta), en tire une valeur au hasard par machine et joue la plus haute. Une machine est donc jouée avec la probabilité qu’elle soit la meilleure, d’après ce qu’il a observé.',
 };
 
 /** Niveaux de vitesse : coups par seconde. */

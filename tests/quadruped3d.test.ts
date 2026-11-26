@@ -151,6 +151,16 @@ describe('note et apprentissage', () => {
     expect(r.distance).toBeCloseTo(b.distance, 2);
   });
 
+  it('chaque intervention fait perdre du terrain au cerveau sain', () => {
+    const b = load('healthy');
+    const base = evaluate(b.params, DEFAULT_WORLD, DEFAULT_REWARD).distance;
+    for (const iv of INTERVENTIONS) {
+      const w = { ...DEFAULT_WORLD };
+      iv.set(w, true);
+      expect(evaluate(b.params, w, DEFAULT_REWARD).distance).toBeLessThan(base * 0.8);
+    }
+  });
+
   it('le cerveau sain marche moins bien avec la patte cassée que le cerveau adapté', () => {
     const healthy = load('healthy');
     const broken = load('broken');

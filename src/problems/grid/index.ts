@@ -10,7 +10,7 @@ import {
   scenarioSettings,
   speedToTiming,
 } from './config';
-import { TRAITS, detectLevel } from './personality';
+import { TRAITS, detectLevel, fr } from './personality';
 import { BoardColors, BoardOptions, drawBoard, readBoardColors } from './draw';
 import { drawChart, movingAverage } from '../../shared/chart';
 import { onThemeChange, onResize } from '../../shared/ui';
@@ -92,7 +92,7 @@ export function mount(root: HTMLElement): () => void {
       input.addEventListener('input', () => {
         const v = Number(input.value);
         def.set(settings, v);
-        output.textContent = def.format ? def.format(v) : v.toFixed(2);
+        output.textContent = def.format ? def.format(v) : fr(v);
         if (def.id === 'epsilon') setEpsilonNow(v); // effet immédiat
         if (def.id === 'episodes') updateStatus();
         if (def.id.startsWith('r')) boardDirty = cmpDirty = true;
@@ -108,7 +108,7 @@ export function mount(root: HTMLElement): () => void {
       const el = sliderEls.get(def.id)!;
       const v = def.get(settings);
       el.input.value = String(v);
-      el.output.textContent = def.format ? def.format(v) : v.toFixed(2);
+      el.output.textContent = def.format ? def.format(v) : fr(v);
     }
     root.querySelectorAll<HTMLInputElement>('input[name="grid-algo"]').forEach((r) => (r.checked = r.value === settings.algorithm));
     updateAlgoHelp();
@@ -248,6 +248,7 @@ export function mount(root: HTMLElement): () => void {
         world.cells = GridWorld.fromStrings(sc.map).cells;
         box.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
         markPresetsCustom();
+        $('preset-info').textContent = 'Choisissez une expérience pour voir l’effet des paramètres, puis cliquez sur « Démarrer ».';
         const info = $('scenario-info');
         info.replaceChildren();
         const strong = document.createElement('strong');
@@ -275,6 +276,7 @@ export function mount(root: HTMLElement): () => void {
         Object.assign(settings, rest);
         Object.assign(settings.rewards, DEFAULT_SETTINGS.rewards, rewards);
         box.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+        clearScenarioHighlight();
         const info = $('preset-info');
         info.replaceChildren();
         const strong = document.createElement('strong');
@@ -363,9 +365,9 @@ export function mount(root: HTMLElement): () => void {
   function updateStats() {
     $('st-episode').textContent = `${trainer.episode} / ${settings.episodes}`;
     $('st-step').textContent = String(trainer.stepInEpisode);
-    $('st-eps').textContent = trainer.epsilon.toFixed(2);
+    $('st-eps').textContent = fr(trainer.epsilon);
     const last = trainer.history[trainer.history.length - 1];
-    $('st-last').textContent = last === undefined ? '–' : last.toFixed(1);
+    $('st-last').textContent = last === undefined ? '–' : fr(last, 1);
   }
 
   // ---------- Comparaison ----------

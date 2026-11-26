@@ -112,6 +112,8 @@ export function drawChart(canvas: HTMLCanvasElement, values: number[], colors: C
   for (const e of extra) line(e.values, e.color, 2, e.dashed);
 }
 
+/** Nombre à la française : virgule décimale et vrai signe moins. */
 function formatNum(v: number): string {
-  return Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1);
+  const txt = Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1);
+  return txt.replace('.', ',').replace(/^-/, '\u2212');
 }

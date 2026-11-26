@@ -35,7 +35,7 @@ export const TEMPLATE = `
       <dl class="stats">
         <div><dt>Épisode</dt><dd id="grid-st-episode">0</dd></div>
         <div><dt>Pas (épisode)</dt><dd id="grid-st-step">0</dd></div>
-        <div><dt>ε actuel</dt><dd id="grid-st-eps">1.00</dd></div>
+        <div><dt>ε actuel</dt><dd id="grid-st-eps">1,00</dd></div>
         <div><dt>Dernière récompense</dt><dd id="grid-st-last">–</dd></div>
       </dl>
       <p id="grid-status" class="status" role="status"></p>
@@ -138,10 +138,10 @@ export const TEMPLATE = `
       </ul>
       <h3>Que veulent dire les traits de personnalité ?</h3>
       <ul>
-        <li><strong>Curiosité</strong> = ε et sa décroissance : la part de pas joués au hasard. Sans curiosité, l’agent ne
-          découvre jamais un trésor qu’il n’a pas déjà croisé.</li>
+        <li><strong>Curiosité</strong> = ε et sa décroissance : la part de pas joués au hasard. Avec peu de curiosité, l’agent
+          risque de se contenter du premier trésor trouvé, sans jamais découvrir qu’un meilleur existe plus loin.</li>
         <li><strong>Vision à long terme</strong> = γ : chaque pas d’attente multiplie la valeur d’une récompense par γ.
-          Avec γ = 0,5, un gain 5 pas plus loin ne vaut déjà plus que 3 % ; avec γ = 0,99, encore 95 %.</li>
+          Avec γ = 0,5, un gain 5 pas plus loin ne vaut déjà plus que 3&nbsp;% ; avec γ = 0,99, encore 95&nbsp;%.</li>
         <li><strong>Prudence</strong> = l’algorithme (Q-learning ou SARSA) et la pénalité des pièges.</li>
         <li><strong>Impatience</strong> = le coût de chaque pas : plus il est élevé, plus les longs trajets coûtent cher.</li>
         <li><strong>Mémoire</strong> = α, la part de l’écart « attendu / vécu » corrigée à chaque expérience.</li>

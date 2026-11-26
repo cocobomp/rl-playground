@@ -3,7 +3,7 @@ import { TEMPLATE } from './template';
 import { AGENT_KNOBS, EXPERT_SLIDERS, Knob, SCENARIOS, Settings, WORLD_KNOBS, defaultSettings } from './config';
 import { CartPole, DT, MAX_STEPS, hashSeed, observe } from './env';
 import { Controller, PolicySpec, makeController } from './agent';
-import { drawNetwork, drawStage } from './draw';
+import { drawNetwork, drawStage, parseColor } from './draw';
 import type { FromWorker, ToWorker } from './protocol';
 import { drawChart } from '../../shared/chart';
 import { createSlider, onResize, onThemeChange, rafLoop, readTheme } from '../../shared/ui';
@@ -113,9 +113,11 @@ export function mount(root: HTMLElement): () => void {
         settings.world.windForce = 0.35;
         worldChanged('le vent se lève');
         refreshKnobs();
+        flashUntil = generation + (settings.algo === 'es' ? 40 : 400);
         flashStatus = 'Le vent se lève ! L’agent n’a jamais connu de rafales : regardez la courbe chuter, puis remonter pendant qu’il apprend à y résister.';
       }
     }
+    if (flashStatus && flashUntil > 0 && generation >= flashUntil) flashStatus = '';
     const finished = settings.algo === 'es' ? generation >= MAX_GENERATIONS : totalEpisodes >= MAX_RF_EPISODES;
     if (finished && training) setTraining(false);
     updateStats();
@@ -135,7 +137,14 @@ export function mount(root: HTMLElement): () => void {
     championGen = 0;
     flashStatus = '';
     stormPhase = scenarioKey && SCENARIOS[scenarioKey].storm ? 'calm' : 'off';
-    send({ type: 'reset', runId, algo: settings.algo, es: { ...settings.es }, rf: { ...settings.rf }, world: { ...settings.world } });
+    flashUntil = 0;
+    if (stormPhase === 'calm' && settings.world.windForce !== 0) {
+      // « Réinitialiser » pendant la Tempête : l'histoire recommence par temps calme.
+      settings.world.windForce = 0;
+      refreshKnobs();
+    }
+    const limit = settings.algo === 'es' ? MAX_GENERATIONS : MAX_RF_EPISODES;
+    send({ type: 'reset', runId, algo: settings.algo, es: { ...settings.es }, rf: { ...settings.rf }, world: { ...settings.world }, limit });
     send({ type: 'pace', pace: settings.pace });
     chartDirty = true;
     updateLabels();
@@ -147,7 +156,7 @@ export function mount(root: HTMLElement): () => void {
     const finished = settings.algo === 'es' ? generation >= MAX_GENERATIONS : totalEpisodes >= MAX_RF_EPISODES;
     training = on && !!worker && !workerFailed && !finished;
     send({ type: 'run', on: training });
-    btnRun.textContent = training ? 'Pause' : generation > 0 ? 'Reprendre' : 'Apprendre';
+    btnRun.textContent = training ? 'Pause' : finished ? 'Recommencer' : generation > 0 ? 'Reprendre' : 'Apprendre';
     updateStatus();
   }
 
@@ -167,7 +176,11 @@ export function mount(root: HTMLElement): () => void {
   // ---------------------------------------------------------------------------
   const btnRun = $<HTMLButtonElement>('btn-run');
   const btnUnit = $<HTMLButtonElement>('btn-unit');
-  btnRun.addEventListener('click', () => setTraining(!training));
+  btnRun.addEventListener('click', () => {
+    const finished = settings.algo === 'es' ? generation >= MAX_GENERATIONS : totalEpisodes >= MAX_RF_EPISODES;
+    if (finished && !training) resetLearning();
+    setTraining(!training);
+  });
   btnUnit.addEventListener('click', () => {
     setTraining(false);
     send({ type: 'unit', episodes: 10 });
@@ -175,12 +188,14 @@ export function mount(root: HTMLElement): () => void {
   $('btn-reset').addEventListener('click', () => resetLearning());
 
   let flashStatus = '';
+  /** Le message ponctuel disparaît après cette génération / cet épisode. */
+  let flashUntil = 0;
   function updateStatus() {
     const el = $('status');
     let msg: string;
     if (workerFailed) msg = 'Le calcul en arrière-plan (Web Worker) n’a pas pu démarrer dans ce navigateur : l’apprentissage est indisponible.';
-    else if (settings.algo === 'es' && generation >= MAX_GENERATIONS) msg = `Arrêt automatique après ${MAX_GENERATIONS} générations. Réinitialisez pour recommencer.`;
-    else if (settings.algo === 'reinforce' && totalEpisodes >= MAX_RF_EPISODES) msg = `Arrêt automatique après ${MAX_RF_EPISODES} épisodes. Réinitialisez pour recommencer.`;
+    else if (settings.algo === 'es' && generation >= MAX_GENERATIONS) msg = `Arrêt automatique après ${MAX_GENERATIONS} générations. Cliquez sur « Recommencer » pour repartir de zéro.`;
+    else if (settings.algo === 'reinforce' && totalEpisodes >= MAX_RF_EPISODES) msg = `Arrêt automatique après ${MAX_RF_EPISODES} épisodes. Cliquez sur « Recommencer » pour repartir de zéro.`;
     else if (generation === 0)
       msg = training
         ? 'Première génération en cours…'
@@ -256,7 +271,8 @@ export function mount(root: HTMLElement): () => void {
   }
 
   function onKnob(knob: Knob, levelLabel: string) {
-    clearScenario(false);
+    // Le rythme ne change pas ce qui est appris : le scénario en cours continue.
+    if (knob.id !== 'pace') clearScenario(true);
     if (knob.effect === 'world') {
       if (knob.id === 'wind' && stormPhase !== 'off') stormPhase = 'off';
       worldChanged(`${knob.label.toLowerCase()} : ${levelLabel.toLowerCase()}`);
@@ -319,7 +335,7 @@ export function mount(root: HTMLElement): () => void {
         format: def.format,
         onInput: (v) => {
           def.set(settings, v);
-          clearScenario(false);
+          clearScenario(true);
           if (def.effect === 'reset') resetLearning();
           else sendHyper();
           refreshKnobs();
@@ -335,7 +351,7 @@ export function mount(root: HTMLElement): () => void {
   }
   $<HTMLInputElement>('continuous').addEventListener('change', (e) => {
     settings.es.continuous = (e.target as HTMLInputElement).checked;
-    clearScenario(false);
+    clearScenario(true);
     resetLearning();
   });
 
@@ -345,8 +361,10 @@ export function mount(root: HTMLElement): () => void {
   function clearScenario(clearInfo: boolean) {
     if (!scenarioKey) return;
     scenarioKey = null;
+    // L'histoire scriptée de la Tempête s'arrête dès qu'on sort du scénario.
+    if (stormPhase === 'calm') stormPhase = 'off';
     root.querySelectorAll('#cartpole-scenarios button').forEach((b) => b.classList.remove('active'));
-    if (clearInfo) $('scenario-info').textContent = 'Réglages personnalisés.';
+    if (clearInfo) $('scenario-info').textContent = 'Réglages personnalisés : vous avez modifié le scénario. Choisissez-en un pour repartir d’une histoire.';
   }
   function buildScenarios() {
     const box = $('scenarios');
@@ -607,7 +625,10 @@ export function mount(root: HTMLElement): () => void {
     const colors = { raw: theme.chartRaw, avg: theme.chartAvg, axis: theme.border, text: theme.muted };
     const extra: { values: number[]; color: string; dashed?: boolean }[] = [];
     if (values.length > 0) {
-      if (es) extra.push({ values: esBest, color: theme.series[1], dashed: true });
+      if (es) {
+        const c = parseColor(theme.series[1]);
+        extra.push({ values: esBest, color: `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.55)`, dashed: true });
+      }
       extra.push({ values: [MAX_STEPS], color: 'rgba(0, 0, 0, 0)' }); // fixe l'échelle à 0–500
     }
     drawChart(chart, values, colors, {
@@ -638,8 +659,16 @@ export function mount(root: HTMLElement): () => void {
         ctx.lineTo(x, h - pad.b);
         ctx.stroke();
         const right = x < w - 120;
-        ctx.textAlign = right ? 'left' : 'right';
-        ctx.fillText(m.label, x + (right ? 4 : -4), pad.t + 2 + (k % 3) * 13);
+        const tw = ctx.measureText(m.label).width;
+        const tx = right ? x + 4 : x - 4 - tw;
+        const ty = pad.t + 14 + (k % 3) * 16;
+        ctx.fillStyle = theme.panel;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(tx - 3, ty - 1, tw + 6, 15);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = theme.trap;
+        ctx.textAlign = 'left';
+        ctx.fillText(m.label, tx, ty + 1);
       });
       ctx.restore();
     }

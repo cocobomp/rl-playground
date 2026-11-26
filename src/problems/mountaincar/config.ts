@@ -1,6 +1,6 @@
 // Réglages, traits « haut niveau », scénarios et curseurs experts. Sans DOM.
 import { AgentConfig, DEFAULT_AGENT } from './agent';
-import { DEFAULT_PHYSICS, PhysicsParams, Shaping, canClimbDirectly } from './env';
+import { DEFAULT_PHYSICS, PhysicsParams, Shaping, canClimbDirectly, directClimb } from './env';
 
 export type Speed = 'slow' | 'normal' | 'fast' | 'turbo';
 
@@ -23,7 +23,11 @@ export const SPEEDS: Array<{ id: Speed; label: string }> = [
   { id: 'turbo', label: 'Turbo' },
 ];
 
-const fr = (v: number, d = 2) => v.toFixed(d).replace('.', ',').replace('-', '−');
+const fr = (v: number, d = 2) => {
+  const s = v.toFixed(d);
+  // Pas de « −0 » quand l’arrondi tombe sur zéro.
+  return (Number(s) === 0 ? s.replace('-', '') : s).replace('.', ',').replace('-', '−');
+};
 export const formatNumber = fr;
 
 // ---------- Traits à niveaux (boutons segmentés) ----------
@@ -133,9 +137,13 @@ export function describeEngine(p: PhysicsParams): string {
   const engine = 0.001 * p.force;
   const pull = 0.0025 * p.gravity;
   const cmp = `poussée ${fr(engine * 1000, 2)} contre une pente qui tire jusqu’à ${fr(pull * 1000, 2)} (×10⁻³)`;
-  return canClimbDirectly(p.force, p.gravity)
-    ? `${cmp} : le moteur gagne partout, foncer à droite suffit — plus besoin d’élan.`
-    : `${cmp} : impossible de monter d’une traite, il faut prendre de l’élan.`;
+  if (canClimbDirectly(p.force, p.gravity)) return `${cmp} : le moteur l’emporte partout, foncer à droite suffit — plus besoin d’élan.`;
+  const d = directClimb(p.force, p.gravity, 21, p.maxSteps);
+  if (d.fraction >= 1)
+    return `${cmp} : la pente l’emporte au point le plus raide, mais la descente depuis le départ donne assez d’élan — foncer à droite suffit, d’où que l’on parte.`;
+  if (d.fraction > 0)
+    return `${cmp} : foncer à droite suffit seulement depuis les départs les plus à gauche (x ≤ ${fr(d.maxStart)}) ; ailleurs, il faut encore reculer pour prendre de l’élan.`;
+  return `${cmp} : impossible de monter d’une traite, il faut reculer pour prendre de l’élan.`;
 }
 
 // ---------- Scénarios ----------

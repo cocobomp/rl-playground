@@ -3,7 +3,7 @@ import type { EsOptions, PolicySpec, ReinforceOptions } from './agent';
 import type { WorldParams } from './env';
 
 export type ToWorker =
-  | { type: 'reset'; runId: number; algo: 'es' | 'reinforce'; es: EsOptions; rf: ReinforceOptions; world: WorldParams }
+  | { type: 'reset'; runId: number; algo: 'es' | 'reinforce'; es: EsOptions; rf: ReinforceOptions; world: WorldParams; /** Arrêt automatique : nombre max de générations (ES) ou d'épisodes (REINFORCE). */ limit: number }
   | { type: 'run'; on: boolean }
   | { type: 'world'; world: WorldParams }
   | { type: 'pace'; pace: number }

@@ -8,6 +8,8 @@ let es: EsTrainer | null = null;
 let rf: ReinforceTrainer | null = null;
 let world: WorldParams | null = null;
 let runId = 0;
+/** Arrêt automatique (générations pour ES, épisodes pour REINFORCE). */
+let limit = Infinity;
 let running = false;
 /** Épisodes simulés par seconde (0 = aussi vite que possible). */
 let pace = 150;
@@ -22,8 +24,16 @@ function costOfUnit(): number {
 }
 
 /** Une unité de travail : une génération (ES) ou un épisode (REINFORCE). */
+function reachedLimit(): boolean {
+  return algo === 'es' ? !!es && es.es.generation >= limit : !!rf && rf.episode >= limit;
+}
+
 function doUnit(pending: number[]): void {
   if (!world) return;
+  if (reachedLimit()) {
+    running = false;
+    return;
+  }
   if (algo === 'es' && es) {
     const r = es.generation(world);
     post({ type: 'gen', runId, generation: r.generation, mean: r.mean, best: r.best, champion: r.champion, episodes: r.episodes });
@@ -71,8 +81,9 @@ function setRunning(on: boolean): void {
   }
 }
 
-function reset(a: 'es' | 'reinforce', esOpts: EsOptions, rfOpts: ReinforceOptions, w: WorldParams, id: number): void {
+function reset(a: 'es' | 'reinforce', esOpts: EsOptions, rfOpts: ReinforceOptions, w: WorldParams, id: number, max: number): void {
   algo = a;
+  limit = max;
   world = w;
   runId = id;
   credit = 0;
@@ -86,7 +97,7 @@ self.onmessage = (ev: MessageEvent<ToWorker>) => {
   switch (m.type) {
     case 'reset':
       setRunning(false);
-      reset(m.algo, m.es, m.rf, m.world, m.runId);
+      reset(m.algo, m.es, m.rf, m.world, m.runId, m.limit);
       break;
     case 'run':
       setRunning(m.on);
@@ -104,7 +115,7 @@ self.onmessage = (ev: MessageEvent<ToWorker>) => {
     case 'unit': {
       const pending: number[] = [];
       const n = algo === 'es' ? 1 : m.episodes;
-      for (let i = 0; i < n; i++) doUnit(pending);
+      for (let i = 0; i < n && !reachedLimit(); i++) doUnit(pending);
       flushEpisodes(pending);
       break;
     }

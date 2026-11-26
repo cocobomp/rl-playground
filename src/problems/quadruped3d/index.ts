@@ -319,11 +319,11 @@ export function mount(root: HTMLElement): () => void {
     if (settings.world.brokenFrontLeft) {
       loadBrain(PRETRAINED_BROKEN.params, 'pré-entraîné (3 pattes)');
       setStatus(
-        `Cerveau pré-entraîné pour la patte avant gauche cassée (adapté hors ligne à partir du cerveau sain, ${PRETRAINED_BROKEN.generation} générations).`,
+        `Cerveau pré-entraîné pour la patte avant gauche cassée : ${PRETRAINED_BROKEN.history}.`,
       );
     } else {
       loadBrain(PRETRAINED_HEALTHY.params, 'pré-entraîné (robot intact)');
-      setStatus(`Cerveau pré-entraîné hors ligne sur le robot intact (${PRETRAINED_HEALTHY.generation} générations).`);
+      setStatus(`Cerveau pré-entraîné hors ligne pour le robot intact : ${PRETRAINED_HEALTHY.history}.`);
     }
   });
   $('btn-scratch').addEventListener('click', () => {
@@ -358,6 +358,8 @@ export function mount(root: HTMLElement): () => void {
   }
   function onWorldChanged(what: string): void {
     send({ type: 'world', world: { ...settings.world } });
+    // Le record n'a de sens que dans un même monde : il repart de la performance actuelle.
+    record = -Infinity;
     clearScenarioButtons();
     evaluateCurrent();
     restartReplay();
