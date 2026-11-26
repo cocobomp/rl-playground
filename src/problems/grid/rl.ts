@@ -1,7 +1,8 @@
 // Cœur du reinforcement learning : environnement "grille" + agent tabulaire.
 // Aucune dépendance au DOM : ce module est testé directement (voir tests/).
 
-export type Cell = 'empty' | 'wall' | 'trap' | 'start' | 'goal';
+/** `goal` = grand trésor (arrivée), `bonus` = petit trésor : les deux terminent l'épisode. */
+export type Cell = 'empty' | 'wall' | 'trap' | 'start' | 'goal' | 'bonus';
 
 /** Les 4 actions possibles, dans cet ordre : haut, droite, bas, gauche. */
 export const ACTIONS = [
@@ -19,7 +20,12 @@ export interface Rewards {
   trap: number;
   /** Coût de chaque pas (généralement petit et négatif). */
   step: number;
+  /** Récompense du petit trésor (case `bonus`). 3 si absente. */
+  small?: number;
 }
+
+/** Valeur par défaut du petit trésor. */
+export const DEFAULT_SMALL_REWARD = 3;
 
 export type Algorithm = 'qlearning' | 'sarsa';
 
@@ -50,7 +56,7 @@ export const DEFAULT_PARAMS: Params = {
   epsilonDecay: 0.97,
   epsilonMin: 0.01,
   slip: 0,
-  rewards: { goal: 10, trap: -10, step: -0.1 },
+  rewards: { goal: 10, trap: -10, step: -0.1, small: DEFAULT_SMALL_REWARD },
   maxSteps: 200,
 };
 
@@ -83,10 +89,10 @@ export class GridWorld {
 
   /**
    * Construit une grille à partir de lignes de texte :
-   * `.` vide, `#` mur, `T` piège, `S` départ, `G` arrivée.
+   * `.` vide, `#` mur, `T` piège, `S` départ, `G` arrivée (grand trésor), `g` petit trésor.
    */
   static fromStrings(rows: string[]): GridWorld {
-    const map: Record<string, Cell> = { '.': 'empty', '#': 'wall', T: 'trap', S: 'start', G: 'goal' };
+    const map: Record<string, Cell> = { '.': 'empty', '#': 'wall', T: 'trap', S: 'start', G: 'goal', g: 'bonus' };
     const size = rows.length;
     const cells: Cell[] = [];
     for (const row of rows) {
@@ -117,13 +123,26 @@ export class GridWorld {
     return this.cells.indexOf('start');
   }
 
+  /** Y a-t-il au moins une arrivée (grand ou petit trésor) ? */
   hasGoal(): boolean {
-    return this.cells.includes('goal');
+    return this.cells.includes('goal') || this.cells.includes('bonus');
   }
 
   isTerminal(s: number): boolean {
     const c = this.cells[s];
-    return c === 'goal' || c === 'trap';
+    return c === 'goal' || c === 'trap' || c === 'bonus';
+  }
+
+  /** Copie des cases sous forme de lignes de texte (inverse de fromStrings). */
+  toStrings(): string[] {
+    const ch: Record<Cell, string> = { empty: '.', wall: '#', trap: 'T', start: 'S', goal: 'G', bonus: 'g' };
+    const rows: string[] = [];
+    for (let r = 0; r < this.size; r++) {
+      let row = '';
+      for (let c = 0; c < this.size; c++) row += ch[this.cells[this.index(r, c)]];
+      rows.push(row);
+    }
+    return rows;
   }
 
   /** Place une case. Il ne peut y avoir qu'un seul départ : l'ancien est effacé. */
@@ -152,6 +171,7 @@ export class GridWorld {
     const cell = this.cells[next];
     if (cell === 'goal') return { next, reward: rewards.goal, done: true };
     if (cell === 'trap') return { next, reward: rewards.trap, done: true };
+    if (cell === 'bonus') return { next, reward: rewards.small ?? DEFAULT_SMALL_REWARD, done: true };
     return { next, reward: rewards.step, done: false };
   }
 }
