@@ -1,9 +1,9 @@
-// Couche « haut niveau » : des traits de caractère en français courant, traduits en paramètres techniques.
+// Couche « haut niveau » : des traits de caractère en français courant, traduits en paramètres techniques.
 // Aucune dépendance au DOM (testé directement).
 import type { Settings } from './config';
 
 export interface Level {
-  /** Nom affiché (ex. « prévoyant »). */
+  /** Nom affiché (ex. « prévoyant »). */
   label: string;
   /** Applique ce niveau aux réglages techniques. */
   apply: (s: Settings) => void;
@@ -16,18 +16,20 @@ export interface Trait {
   label: string;
   /** Une ligne : ce que ce trait change dans le comportement, et quoi observer. */
   help: string;
-  /** « segmented » : quelques boutons ; « range » : curseur à crans. */
+  /** « segmented » : quelques boutons ; « range » : curseur à crans. */
   kind: 'segmented' | 'range';
   /** Étiquettes des deux extrémités d’un curseur. */
   ends?: [string, string];
   levels: Level[];
-  /** Valeurs techniques actuelles, lisibles (ex. « γ = 0,95 »). */
+  /** Valeurs techniques actuelles, lisibles (ex. « γ = 0,95 »). */
   describe: (s: Settings) => string;
 }
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 /** Nombre à la française : virgule décimale. */
 export const fr = (v: number, digits = 2) => v.toFixed(digits).replace('.', ',').replace('-', '−');
+/** Pourcentage arrondi, avec espace insécable : « 10 % ». */
+export const pct = (v: number) => `${Math.round(v * 100)}\u00a0%`;
 
 /** Fabrique des niveaux qui ne règlent qu’un seul nombre. */
 function numberLevels(
@@ -73,8 +75,8 @@ export const TRAITS: Trait[] = [
     ],
     describe: (s) =>
       s.epsilonDecay >= 1
-        ? `ε = ${fr(s.epsilon)} en permanence (${Math.round(s.epsilon * 100)} % de pas au hasard, toujours)`
-        : `ε part de ${fr(s.epsilon)} et est multiplié par ${fr(s.epsilonDecay, 3)} à chaque épisode (minimum ${fr(s.epsilonMin)})`,
+        ? `part de hasard ε = ${pct(s.epsilon)} en permanence`
+        : `part de hasard ε = ${pct(s.epsilon)} au début, multipliée par ${fr(s.epsilonDecay, 3)} après chaque tentative (minimum ${pct(s.epsilonMin)})`,
   },
   {
     id: 'vision',
@@ -84,8 +86,8 @@ export const TRAITS: Trait[] = [
     help: 'Myope : une récompense lointaine ne compte presque pas, il se contente de ce qui est proche. Prévoyant : il accepte un long trajet pour un meilleur gain.',
     levels: numberLevels(['très myope', 'myope', 'équilibré', 'prévoyant', 'très prévoyant'], GAMMA_LEVELS, (s) => s.gamma, (s, v) => (s.gamma = v)),
     describe: (s) => {
-      const pct = Math.pow(s.gamma, 10) * 100;
-      return `γ = ${fr(s.gamma)} : une récompense 10 pas plus loin ne compte que pour ${pct < 1 ? 'moins de 1' : Math.round(pct)} %`;
+      const p = Math.pow(s.gamma, 10) * 100;
+      return `poids du futur γ = ${fr(s.gamma)} : une récompense 10 pas plus loin ne compte plus que pour ${p < 1 ? 'moins de 1' : Math.round(p)} %`;
     },
   },
   {
@@ -111,7 +113,7 @@ export const TRAITS: Trait[] = [
       },
     ],
     describe: (s) =>
-      `${s.algorithm === 'sarsa' ? 'SARSA (apprend en comptant ses propres écarts)' : 'Q-learning (suppose qu’il jouera parfaitement)'}, piège = ${fr(s.rewards.trap, 0)}`,
+      `${s.algorithm === 'sarsa' ? 'SARSA (apprend en comptant ses propres écarts)' : 'Q-learning (suppose qu’il jouera parfaitement)'}, pénalité de piège ${fr(s.rewards.trap, 0)}`,
   },
   {
     id: 'impatience',
@@ -129,7 +131,7 @@ export const TRAITS: Trait[] = [
     ends: ['retient lentement', 'change d’avis vite'],
     help: 'Lentement : chaque expérience ne corrige qu’un peu ses estimations (stable mais long). Vite : la dernière expérience écrase tout (rapide mais instable, surtout si le sol glisse).',
     levels: numberLevels(['très lente', 'lente', 'modérée', 'rapide', 'instantanée'], ALPHA_LEVELS, (s) => s.alpha, (s, v) => (s.alpha = v)),
-    describe: (s) => `α = ${fr(s.alpha)} : chaque expérience corrige ${Math.round(s.alpha * 100)} % de l’écart entre attente et réalité`,
+    describe: (s) => `taux d’apprentissage α = ${fr(s.alpha)} : chaque expérience corrige ${pct(s.alpha)} de l’écart entre attente et réalité`,
   },
   {
     id: 'world',
@@ -138,11 +140,11 @@ export const TRAITS: Trait[] = [
     ends: ['sol stable', 'sol très glissant'],
     help: 'Sur un sol glissant, l’agent part parfois dans une direction au hasard malgré lui : frôler un piège devient vraiment dangereux, même pour Q-learning.',
     levels: numberLevels(['stable', 'un peu glissant', 'glissant', 'très glissant'], SLIP_LEVELS, (s) => s.slip, (s, v) => (s.slip = v)),
-    describe: (s) => `glissance = ${Math.round(s.slip * 100)} % des actions remplacées par une direction au hasard`,
+    describe: (s) => `glissance : ${pct(s.slip)} des actions remplacées par une direction au hasard`,
   },
 ];
 
-/** Indice du niveau correspondant aux réglages, ou -1 (« personnalisé »). */
+/** Indice du niveau correspondant aux réglages, ou -1 (« personnalisé »). */
 export function detectLevel(trait: Trait, s: Settings): number {
   return trait.levels.findIndex((l) => l.matches(s));
 }

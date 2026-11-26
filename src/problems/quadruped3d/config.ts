@@ -141,7 +141,7 @@ export const SCENARIOS: Scenario[] = [
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Cerveau pré-entraîné, corps intact. Observez le rythme régulier des pattes, cadencé par l’horloge interne (1,6 cycles par seconde), et la distance atteinte en 8 secondes.',
+      'Cerveau pré-entraîné, corps intact. Regardez le rythme régulier des pattes (1,6 cycles de marche par seconde, donnés par une horloge interne) et la distance : environ 9 m en 8 s. C’est le résultat de 2 439 générations d’apprentissage faites à l’avance.',
   },
   {
     id: 'injury',
@@ -150,7 +150,7 @@ export const SCENARIOS: Scenario[] = [
     brain: 'healthy',
     autoTrain: false,
     description:
-      'On casse la patte avant gauche, mais le cerveau reste celui du robot intact : il boite, dévie ou tombe. Cliquez sur « Réapprendre » : génération après génération, la note remonte car l’évolution garde les variantes qui compensent la patte manquante : d’abord ne plus tomber, puis avancer. Pressé ? Une fois la patte cassée, « Cerveau pré-entraîné » charge un cerveau déjà adapté hors ligne.',
+      'On casse la patte avant gauche, mais le cerveau reste celui du robot intact : il boite et n’avance plus qu’à peine 1 m en 8 s. Cliquez sur « Réapprendre » et regardez la courbe : en 20 à 50 générations (moins d’une minute), la distance remonte en général vers 5 à 7 m, parce que l’évolution garde les variantes qui compensent la patte manquante. Elle part d’un cerveau qui sait déjà presque marcher : c’est bien plus rapide que de tout réapprendre. Pressé ? Une fois la patte cassée, « Cerveau pré-entraîné » charge un cerveau déjà adapté hors ligne.',
   },
   {
     id: 'knee',
@@ -159,7 +159,7 @@ export const SCENARIOS: Scenario[] = [
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Le genou arrière droit est bloqué tendu. Le cerveau envoie les mêmes consignes qu’avant, mais une patte ne plie plus : la poussée est déséquilibrée et le robot trébuche, dévie ou tombe. Lancez « Réapprendre » : l’évolution cherche une démarche qui balance cette patte raide depuis la hanche. C’est plus difficile qu’il n’y paraît : la note monte d’abord parce que le robot tombe moins vite, et il faut souvent plusieurs centaines de générations avant une vraie démarche.',
+      'Le genou arrière droit est bloqué tendu. Le cerveau envoie les mêmes consignes qu’avant, mais une patte ne plie plus : le robot bascule et tombe presque aussitôt (environ 15 cm). Lancez « Réapprendre » et regardez la courbe : elle monte, mais très lentement. Les générations défilent vite (les essais s’arrêtent dès la chute), mais même après plusieurs centaines, le robot tombe souvent encore avant la fin des 8 s : il va seulement un peu plus loin (1 à 2 m). C’est une vraie limite de la méthode : quand la bonne démarche est très différente de celle qu’on connaît, essayer des variantes au hasard progresse lentement.',
   },
   {
     id: 'scratch',
@@ -168,7 +168,7 @@ export const SCENARIOS: Scenario[] = [
     brain: 'random',
     autoTrain: true,
     description:
-      'Cerveau aléatoire : le robot gigote sans but. L’apprentissage démarre tout de suite. Il faut souvent une centaine de générations (quelques minutes en 3D) avant de voir une vraie démarche.',
+      'Cerveau aléatoire : le robot gigote sans but. L’apprentissage démarre tout de suite. Regardez la courbe : elle reste plate un bon moment, puis monte lentement. Il faut souvent plus d’une centaine de générations (plusieurs minutes) avant de voir une vraie démarche, parfois bien plus : le résultat varie d’une fois à l’autre, et la démarche trouvée diffère de celle du cerveau pré-entraîné. C’est la limite de la 3D : apprendre de zéro coûte cher.',
   },
 ];
 

@@ -183,3 +183,30 @@ describe('note et apprentissage', () => {
     expect(EPISODE_STEPS).toBe(480);
   }, 20000);
 });
+
+describe('chiffres annoncés dans l’interface (Commencez ici, scénarios)', () => {
+  const reward = rewardOf(defaultSettings());
+  it('cerveau pré-entraîné, robot intact : environ 9 m en 8 s sans chute', () => {
+    const r = evaluate(PRETRAINED_HEALTHY.params, DEFAULT_WORLD, reward);
+    expect(r.fell).toBe(false);
+    expect(r.distance).toBeGreaterThan(8);
+    expect(r.distance).toBeLessThan(10);
+  });
+  it('même cerveau, patte cassée : il boite, environ 1 m', () => {
+    const r = evaluate(PRETRAINED_HEALTHY.params, { ...DEFAULT_WORLD, brokenFrontLeft: true }, reward);
+    expect(r.distance).toBeLessThan(1.5);
+  });
+  it('même cerveau, genou bloqué : il tombe presque aussitôt', () => {
+    const r = evaluate(PRETRAINED_HEALTHY.params, { ...DEFAULT_WORLD, lockedRearRightKnee: true }, reward);
+    expect(r.fell).toBe(true);
+    expect(r.distance).toBeLessThan(0.5);
+  });
+  it('les scénarios « Blessure » et « Genou raide » partent du cerveau du robot intact', () => {
+    const injury = SCENARIOS.find((s) => s.id === 'injury')!;
+    const knee = SCENARIOS.find((s) => s.id === 'knee')!;
+    expect(injury.brain).toBe('healthy');
+    expect(injury.world.brokenFrontLeft).toBe(true);
+    expect(knee.brain).toBe('healthy');
+    expect(knee.world.lockedRearRightKnee).toBe(true);
+  });
+});

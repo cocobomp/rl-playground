@@ -1,6 +1,7 @@
 import './style.css';
 import {
   BanditEnv,
+  BEST_WINDOW,
   DEFAULT_PARAMS,
   Race,
   STRATEGIES,
@@ -44,7 +45,8 @@ export function mount(root: HTMLElement): () => void {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => root.querySelector(`#${id}`) as T;
 
   // ---------- État ----------
-  const params: AgentParams = { ...DEFAULT_PARAMS };
+  // ε et c suivent le niveau de curiosité affiché (niveau 5 : ε = 0,10 ; c = 1,40 ≈ √2).
+  const params: AgentParams = { ...DEFAULT_PARAMS, ...curiosityToParams(5) };
   let scenario: ScenarioKind = 'easy';
   let k = SCENARIOS.easy.k;
   let horizon = SCENARIOS.easy.plays;
@@ -422,21 +424,25 @@ export function mount(root: HTMLElement): () => void {
 
   root.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach((b) =>
     b.addEventListener('click', () => {
-      metric = b.dataset.metric as Metric;
-      root.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach((x) => {
-        x.classList.toggle('active', x === b);
-        x.setAttribute('aria-pressed', String(x === b));
-      });
-      chartDirty = true;
-      updateChartTexts();
+      setMetric(b.dataset.metric as Metric);
     }),
   );
+  function setMetric(m: Metric) {
+    metric = m;
+    root.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach((x) => {
+      const on = x.dataset.metric === m;
+      x.classList.toggle('active', on);
+      x.setAttribute('aria-pressed', String(on));
+    });
+    chartDirty = true;
+    updateChartTexts();
+  }
   function updateChartTexts() {
-    $('bandit-chart-title').textContent = metric === 'regret' ? 'Regret cumulé' : 'Part des coups sur la meilleure machine';
+    $('bandit-chart-title').textContent = metric === 'regret' ? 'Regret : pièces perdues' : 'Part des coups sur la meilleure machine';
     $('bandit-chart-help').textContent =
       metric === 'regret'
-        ? 'Gains perdus (en moyenne) par rapport à quelqu’un qui jouerait toujours la meilleure machine. Plus bas = mieux. Une courbe qui s’aplatit = la stratégie a trouvé la bonne machine.'
-        : `Pourcentage des ${50} derniers coups joués sur la meilleure machine du moment. Plus haut = mieux. En cas de changement de réglages, on voit qui s’en aperçoit et en combien de temps.`;
+        ? 'Le regret = les pièces perdues (en moyenne) par rapport à quelqu’un qui jouerait toujours la meilleure machine. Plus bas = mieux. Une courbe qui s’aplatit = la stratégie a trouvé la bonne machine ; une droite qui monte = elle se trompe en permanence.'
+        : `Pourcentage des ${BEST_WINDOW} derniers coups joués sur la meilleure machine du moment. Plus haut = mieux. En cas de changement de réglages, on voit qui s’en aperçoit et en combien de temps.`;
   }
 
   // Légende cliquable (masquer / afficher une stratégie).
@@ -511,7 +517,7 @@ export function mount(root: HTMLElement): () => void {
 
   const curiositySlider = createSlider({
     label: 'Curiosité',
-    help: 'Envie d’essayer d’autres machines plutôt que de rejouer la favorite. Règle ε (ε-greedy) et c (UCB). Thompson et le glouton pur n’en tiennent pas compte : Thompson dose sa curiosité tout seul, d’après son incertitude.',
+    help: 'Envie d’essayer d’autres machines plutôt que de rejouer la favorite. Règle ε (Glouton + hasard) et c (UCB). Thompson et le glouton pur n’en tiennent pas compte : Thompson dose sa curiosité tout seul, d’après son incertitude.',
     min: 0, max: 10, step: 1, value: curiosity,
     format: (v) => {
       const p = curiosityToParams(v);
@@ -541,7 +547,7 @@ export function mount(root: HTMLElement): () => void {
     return g;
   };
   const epsSlider = createSlider({
-    label: 'ε (ε-greedy)',
+    label: 'ε : part de hasard (Glouton + hasard)',
     help: 'Probabilité de jouer une machine au hasard à chaque coup.',
     min: 0, max: 0.5, step: 0.01, value: params.epsilon, format: (v) => fr(v),
     onInput: (v) => {
@@ -587,7 +593,7 @@ export function mount(root: HTMLElement): () => void {
     },
   });
   const q0Slider = createSlider({
-    label: 'Q₀ : estimation de départ (glouton, ε-greedy)',
+    label: 'Q₀ : estimation de départ (les deux gloutons)',
     help: 'Avec Q₀ = 100 %, toute machine non jouée paraît excellente : même le glouton pur essaie alors chaque machine (« optimisme initial »). Recommence la course.',
     min: 0, max: 1, step: 0.05, value: params.initialValue, format: pct,
     onInput: (v) => {
@@ -631,6 +637,7 @@ export function mount(root: HTMLElement): () => void {
     changeBox.checked = change;
     root.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach((b) => b.classList.toggle('active', b.dataset.scenario === kind));
     $('bandit-preset-info').innerHTML = `<strong>${s.label}.</strong> ${s.description}`;
+    setMetric(s.metric);
     newMachines();
   }
   root.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach((b) =>
@@ -661,8 +668,8 @@ export function mount(root: HTMLElement): () => void {
     const lbl = STRATEGIES[view].label;
     setStat(1, 'Coup', `${race.t} / ${horizon}`);
     setStat(2, `Gains (${lbl})`, String(race.totalWins[view]));
-    setStat(3, `Regret (${lbl})`, fr(race.currentRegret(view), 1));
-    setStat(4, 'En tête (regret)', race.t ? STRATEGIES[leaderIndex()].label : '–');
+    setStat(3, `Regret = pièces perdues (${lbl})`, fr(race.currentRegret(view), 1));
+    setStat(4, 'En tête (moins de regret)', race.t ? STRATEGIES[leaderIndex()].label : '–');
   }
 
   function updateStatus() {
@@ -676,7 +683,7 @@ export function mount(root: HTMLElement): () => void {
     } else if (!race) msg = '';
     else if (race.t >= horizon) {
       const l = STRATEGIES[leaderIndex()].label;
-      msg = `Course terminée : ${l} a le plus petit regret. Une seule course dépend de la chance : cliquez sur « Recommencer » pour en relancer une.`;
+      msg = `Course terminée : ${l} a perdu le moins de pièces (plus petit regret). Une seule course dépend de la chance : cliquez sur « Recommencer » pour voir si le classement tient.`;
     } else if (running) {
       msg = change && race.t >= raceEnv.spec.changeAt ? 'Les réglages ont changé ! Qui s’en aperçoit ?' : 'Les stratégies jouent…';
     } else if (race.t === 0) msg = 'Prêt. Cliquez sur « Démarrer » : les quatre stratégies jouent en même temps sur les mêmes machines.';

@@ -1,5 +1,17 @@
 // Gabarit HTML du robot marcheur. Tous les identifiants sont préfixés par « walker- ».
 export const TEMPLATE = `
+<section class="walker-start" aria-label="Commencez ici">
+  <p class="walker-start-title">Commencez ici</p>
+  <ol>
+    <li>Regardez le robot : son «&nbsp;cerveau&nbsp;» a déjà appris à marcher. Sa démarche est étrange, mais il parcourt environ 27&nbsp;m en 10&nbsp;s.</li>
+    <li>Blessez-le : cochez <strong>Bloquer le genou gauche</strong> (ou choisissez le scénario <strong>Blessure au genou</strong>). Le même cerveau ne fait plus qu’environ 11&nbsp;m.</li>
+    <li>Cliquez sur <strong>Réapprendre</strong> et suivez la courbe : en quelques dizaines de «&nbsp;générations&nbsp;» (tours d’essais),
+      il invente une nouvelle démarche et retrouve sa distance.</li>
+  </ol>
+  <p class="walker-start-key">L’idée clé : on ne lui explique jamais <em>comment</em> marcher. On lui donne seulement un <strong>score</strong>
+    (la «&nbsp;récompense&nbsp;») : aller loin, sans trop dépenser d’énergie, sans tomber. Il cherche tout ce qui fait monter ce score… au pied de la lettre,
+    d’où ces démarches bizarres mais efficaces.</p>
+</section>
 <div class="layout walker-root">
   <div class="col">
     <section class="panel" aria-label="Simulation du robot">
@@ -26,7 +38,7 @@ export const TEMPLATE = `
       </div>
 
       <dl class="stats">
-        <div><dt>Génération</dt><dd id="walker-st-gen">0</dd></div>
+        <div><dt title="Un tour d’essais : plusieurs variantes du cerveau sont testées, puis le cerveau est amélioré">Génération (tour d’essais)</dt><dd id="walker-st-gen">0</dd></div>
         <div><dt>Distance (essai affiché)</dt><dd id="walker-st-dist">–</dd></div>
         <div><dt>Vitesse moyenne</dt><dd id="walker-st-speed">–</dd></div>
         <div><dt>Énergie dépensée</dt><dd id="walker-st-energy">–</dd></div>
@@ -55,7 +67,7 @@ export const TEMPLATE = `
       </div>
       <canvas id="walker-chart" class="walker-chart" aria-label="Courbe du meilleur score et du score moyen par génération"></canvas>
       <p class="help walker-chart-legend">
-        <span><span class="walker-line walker-line-mean"></span>moyenne de la population</span>
+        <span><span class="walker-line walker-line-mean"></span>moyenne des variantes testées</span>
         <span><span class="walker-line walker-line-best"></span>meilleure variante</span>
       </p>
       <p class="help" id="walker-chart-help"></p>
@@ -74,7 +86,7 @@ export const TEMPLATE = `
       <h2>Interventions</h2>
       <p class="help walker-intro">
         Modifiez le corps ou le monde. Le cerveau ne change pas : vous voyez d’abord comment il s’en sort
-        <em>sans</em> réapprendre. Cliquez ensuite sur « Réapprendre » pour qu’il s’adapte.
+        <em>sans</em> réapprendre. Cliquez ensuite sur «&nbsp;Réapprendre&nbsp;» pour qu’il s’adapte.
       </p>
       <div id="walker-interventions" class="walker-interventions"></div>
       <div class="map-actions"><button id="walker-btn-heal" class="ghost" type="button">Tout réparer</button></div>
@@ -83,7 +95,8 @@ export const TEMPLATE = `
     <section class="panel" aria-label="Objectifs du robot">
       <h2>Ce que le robot cherche</h2>
       <p class="help walker-intro">
-        Le robot ne reçoit aucune leçon de marche : seulement un score à la fin de chaque essai.
+        Le robot ne reçoit aucune leçon de marche : seulement un score à la fin de chaque essai
+        (en reinforcement learning, on parle de <strong>récompense</strong> : on décrit le but, pas la méthode).
         Ces réglages changent ce score, donc la démarche qu’il finira par trouver. Ils agissent sur l’apprentissage
         à venir, pas sur le cerveau déjà appris.
       </p>
@@ -108,10 +121,10 @@ export const TEMPLATE = `
           (sinus et cosinus d’un rythme à 1,4 Hz). Ce métronome l’aide beaucoup à produire un mouvement qui se répète.</li>
         <li><strong>Ce qu’il décide.</strong> Pour chaque articulation, un angle visé. Un petit asservissement transforme
           l’écart entre l’angle visé et l’angle actuel en vitesse de moteur, dans la limite de sa force.</li>
-        <li><strong>Son cerveau.</strong> Un réseau de neurones 17 → 16 → 4, soit 356 nombres (poids et biais).
+        <li><strong>Son cerveau.</strong> Un réseau de neurones (une fonction de calcul réglable) 17 → 16 → 4, soit 356 nombres (poids et biais).
           Apprendre à marcher, c’est trouver de bonnes valeurs pour ces 356 nombres.</li>
         <li><strong>Comment il apprend : la stratégie d’évolution.</strong> À chaque génération, on fabrique des variantes
-          du cerveau actuel en ajoutant un petit bruit aléatoire à ses poids (par paires : +bruit et −bruit). Chaque variante
+          du cerveau actuel en ajoutant un petit bruit aléatoire à ses poids (par paires : +bruit et −bruit). Le groupe de variantes d’une génération s’appelle la <em>population</em>. Chaque variante
           fait un essai de 10 s et reçoit un score. On déplace ensuite le cerveau vers les variantes les mieux classées.
           Aucune leçon pas à pas : seul compte le score final de chaque essai. Les essais sont répartis sur plusieurs
           Web Workers pour ne pas figer la page.</li>

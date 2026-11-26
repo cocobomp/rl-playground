@@ -10,7 +10,7 @@ import {
   scenarioSettings,
   speedToTiming,
 } from './config';
-import { TRAITS, detectLevel, fr } from './personality';
+import { TRAITS, detectLevel, fr, pct } from './personality';
 import { BoardColors, BoardOptions, drawBoard, readBoardColors } from './draw';
 import { drawChart, movingAverage } from '../../shared/chart';
 import { onThemeChange, onResize } from '../../shared/ui';
@@ -56,6 +56,9 @@ export function mount(root: HTMLElement): () => void {
   const cmpBoardS = $<HTMLCanvasElement>('cmp-s');
   const cmpChart = $<HTMLCanvasElement>('cmp-chart');
   const cmpRunBtn = $<HTMLButtonElement>('cmp-run');
+  const speedInput = $<HTMLInputElement>('speed');
+  const speedOut = $<HTMLOutputElement>('speed-out');
+  const speedDef = SLIDERS.find((d) => d.id === 'speed')!;
 
   // ---------- Couleurs (relues si le thème change) ----------
   let colors: BoardColors = readBoardColors();
@@ -95,6 +98,7 @@ export function mount(root: HTMLElement): () => void {
         output.textContent = def.format ? def.format(v) : fr(v);
         if (def.id === 'epsilon') setEpsilonNow(v); // effet immédiat
         if (def.id === 'episodes') updateStatus();
+        if (def.id === 'speed') syncSpeed();
         if (def.id.startsWith('r')) boardDirty = cmpDirty = true;
         onSettingsChanged();
       });
@@ -112,7 +116,26 @@ export function mount(root: HTMLElement): () => void {
     }
     root.querySelectorAll<HTMLInputElement>('input[name="grid-algo"]').forEach((r) => (r.checked = r.value === settings.algorithm));
     updateAlgoHelp();
+    syncSpeed();
   }
+
+  /** Curseur de vitesse visible près des boutons (doublon du curseur expert). */
+  function syncSpeed() {
+    speedInput.value = String(settings.speed);
+    speedOut.textContent = speedDef.format ? speedDef.format(settings.speed) : String(settings.speed);
+  }
+  speedInput.addEventListener('input', () => {
+    settings.speed = Number(speedInput.value);
+    const el = sliderEls.get('speed');
+    if (el) {
+      el.input.value = speedInput.value;
+      el.output.textContent = speedDef.format ? speedDef.format(settings.speed) : speedInput.value;
+    }
+    syncSpeed();
+  });
+  $('goto-scenarios').addEventListener('click', () => {
+    $('scenarios-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   function setEpsilonNow(v: number) {
     trainer.epsilon = v;
@@ -232,7 +255,7 @@ export function mount(root: HTMLElement): () => void {
 
   // ---------- Scénarios et expériences ----------
   function markPresetsCustom() {
-    // Les boutons restent indicatifs : un réglage modifié à la main n'est plus « le » préréglage.
+    // Les boutons restent indicatifs : un réglage modifié à la main n'est plus « le » préréglage.
     root.querySelectorAll('#grid-presets button').forEach((b) => b.classList.remove('active'));
   }
 
@@ -248,7 +271,7 @@ export function mount(root: HTMLElement): () => void {
         world.cells = GridWorld.fromStrings(sc.map).cells;
         box.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
         markPresetsCustom();
-        $('preset-info').textContent = 'Choisissez une expérience pour voir l’effet des paramètres, puis cliquez sur « Démarrer ».';
+        $('preset-info').textContent = 'Choisissez une expérience pour voir l’effet des paramètres, puis cliquez sur « Démarrer ».';
         const info = $('scenario-info');
         info.replaceChildren();
         const strong = document.createElement('strong');
@@ -347,6 +370,7 @@ export function mount(root: HTMLElement): () => void {
     if (info.episodeEnded) {
       chartDirty = true;
       if (isFinished()) setRunning(false);
+      else updateStatus();
     }
   }
 
@@ -355,17 +379,18 @@ export function mount(root: HTMLElement): () => void {
     if (world.startState() < 0) msg = 'Placez une case Départ pour commencer.';
     else if (!world.hasGoal()) msg = 'Placez au moins un trésor (grand ou petit).';
     else if (isFinished())
-      msg = `Entraînement terminé (${trainer.episode} épisodes). Augmentez le nombre d’épisodes (paramètres experts) pour continuer, ou réinitialisez.`;
-    else if (running) msg = 'L’agent apprend…';
-    else if (trainer.episode === 0 && trainer.totalSteps === 0) msg = 'Prêt. Cliquez sur « Démarrer » ou « Pas à pas ».';
-    else msg = 'En pause.';
+      msg = `Entraînement terminé (${trainer.episode} tentatives). ${greedySummary(trainer)} ` +
+        'Pour continuer, augmentez le nombre d’épisodes (paramètres experts) ; pour tout recommencer, « Réinitialiser ».';
+    else if (running) msg = `L’agent apprend… ${greedySummary(trainer)}`;
+    else if (trainer.episode === 0 && trainer.totalSteps === 0) msg = 'Prêt. Cliquez sur « Démarrer » ou « Pas à pas ».';
+    else msg = `En pause. ${greedySummary(trainer)}`;
     statusEl.textContent = msg;
   }
 
   function updateStats() {
     $('st-episode').textContent = `${trainer.episode} / ${settings.episodes}`;
     $('st-step').textContent = String(trainer.stepInEpisode);
-    $('st-eps').textContent = fr(trainer.epsilon);
+    $('st-eps').textContent = pct(trainer.epsilon);
     const last = trainer.history[trainer.history.length - 1];
     $('st-last').textContent = last === undefined ? '–' : fr(last, 1);
   }
@@ -405,18 +430,25 @@ export function mount(root: HTMLElement): () => void {
     }
   }
 
-  function describeGreedy(t: Trainer): string {
-    if (t.episode === 0) return 'Pas encore d’épisode.';
+  /** Où mène le meilleur chemin appris (pointillés), en une courte phrase. */
+  function greedyTarget(t: Trainer): string {
     const path = t.greedyPath();
     const end = world.cells[path[path.length - 1]];
+    const n = path.length - 1;
+    return end === 'goal' ? `meilleur chemin : ${n} pas jusqu’à l’étoile ★` :
+      end === 'bonus' ? `meilleur chemin : ${n} pas jusqu’au petit trésor` :
+      end === 'trap' ? 'meilleur chemin : finit dans un piège' : 'meilleur chemin : pas encore trouvé';
+  }
+  function greedySummary(t: Trainer): string {
+    if (t.episode === 0) return '';
+    const s = greedyTarget(t);
+    return `${s.charAt(0).toUpperCase()}${s.slice(1)} (pointillés bleus).`;
+  }
+  function describeGreedy(t: Trainer): string {
+    if (t.episode === 0) return 'Pas encore de tentative.';
     const last = t.history.slice(-20);
     const avg = last.reduce((a, b) => a + b, 0) / Math.max(1, last.length);
-    const avgTxt = `moyenne récente ${avg.toFixed(1).replace('.', ',').replace('-', '−')}`;
-    const target =
-      end === 'goal' ? `meilleur chemin : ${path.length - 1} pas jusqu’au ★` :
-      end === 'bonus' ? `meilleur chemin : ${path.length - 1} pas jusqu’au petit trésor` :
-      end === 'trap' ? 'meilleur chemin : finit dans un piège' : 'meilleur chemin : pas encore trouvé';
-    return `${t.episode} épisodes · ${target} · ${avgTxt}`;
+    return `${t.episode} tentatives · ${greedyTarget(t)} · gain moyen récent ${fr(avg, 1)}`;
   }
   function updateCmpInfo() {
     $('cmp-q-info').textContent = describeGreedy(cmpQ);
@@ -425,9 +457,9 @@ export function mount(root: HTMLElement): () => void {
   function updateCmpStatus() {
     let msg: string;
     if (!cmpQ.canRun()) msg = 'La carte doit avoir un départ et au moins un trésor.';
-    else if (cmpFinished()) msg = `Comparaison terminée (${settings.episodes} épisodes chacun). Comparez les pointillés : par où passe chaque agent ?`;
+    else if (cmpFinished()) msg = `Comparaison terminée (${settings.episodes} tentatives chacun). Comparez les pointillés : par où passe chaque agent ? Et quelle courbe est la plus haute ?`;
     else if (cmpRunning) msg = 'Les deux agents apprennent en parallèle…';
-    else if (cmpQ.episode === 0) msg = 'Cliquez sur « Comparer » pour lancer les deux agents en même temps.';
+    else if (cmpQ.episode === 0) msg = 'Cliquez sur « Comparer » pour lancer les deux agents en même temps.';
     else msg = 'Comparaison en pause.';
     $('cmp-status').textContent = msg;
   }

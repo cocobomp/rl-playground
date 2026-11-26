@@ -23,7 +23,7 @@ export interface Settings extends Params {
 export const DEFAULT_SETTINGS: Settings = {
   ...DEFAULT_PARAMS,
   rewards: { ...DEFAULT_PARAMS.rewards },
-  speed: 6,
+  speed: 7,
   episodes: 300,
 };
 
@@ -37,23 +37,25 @@ export const PRESETS: Record<string, Preset> = {
   explore: {
     label: 'Explore trop',
     description:
-      'ε = 1 et aucune décroissance : l’agent joue toujours au hasard. La courbe reste plate et basse, il ne profite jamais de ce qu’il sait. ' +
-      'Avec Q-learning, regardez pourtant les flèches (passez la vitesse au maximum) : au bout de 1 000 à 2 000 épisodes, le meilleur chemin en pointillés rejoint l’arrivée, ' +
-      'car Q-learning apprend la meilleure stratégie même en se promenant au hasard… mais très lentement, puisque les cases lointaines sont rarement visitées.',
+      'Hasard à 100 % en permanence (exploration ε = 1, jamais réduite) : l’agent joue toujours au hasard. ' +
+      'Regardez la courbe : elle reste basse et plate, car il ne se sert jamais de ce qu’il sait. ' +
+      'Montez pourtant la vitesse au maximum et regardez les pointillés : au fil des 2 000 tentatives, ils finissent par rejoindre l’étoile. ' +
+      'Q-learning apprend le meilleur chemin même en se promenant au hasard… mais très lentement.',
     settings: { alpha: 0.3, gamma: 0.95, epsilon: 1, epsilonDecay: 1, slip: 0, episodes: 2000 },
   },
   fast: {
     label: 'Apprend trop vite',
     description:
-      'α = 1 (chaque expérience écrase la précédente), ε chute en quelques épisodes, et le monde est glissant (20 % des actions partent au hasard). ' +
-      'Les valeurs sautent d’un extrême à l’autre, l’agent se fige trop tôt sur un chemin et la courbe reste chaotique.',
+      'Mémoire instantanée (α = 1 : chaque expérience écrase la précédente), hasard qui disparaît en quelques tentatives, et sol glissant (20 % des actions partent au hasard). ' +
+      'Regardez la courbe : elle reste collée en bas, vers −20. L’agent arrête d’explorer avant d’avoir trouvé l’étoile, puis tourne en rond jusqu’à la limite de 200 pas : ' +
+      'trop peu de curiosité, trop tôt.',
     settings: { alpha: 1, gamma: 0.95, epsilon: 0.5, epsilonDecay: 0.8, slip: 0.2, episodes: 300 },
   },
   balanced: {
     label: 'Équilibré',
     description:
-      'α modéré, γ élevé, beaucoup d’exploration au début qui diminue progressivement. ' +
-      'La courbe monte puis se stabilise : l’agent a trouvé un chemin court et sûr.',
+      'Mémoire modérée (α = 0,3), vision lointaine (γ = 0,95), beaucoup de hasard au début puis de moins en moins. ' +
+      'Regardez la courbe : elle monte puis se stabilise vers +8,7. L’agent a trouvé le chemin court et sûr (14 pas) jusqu’à l’étoile.',
     settings: { alpha: 0.3, gamma: 0.95, epsilon: 1, epsilonDecay: 0.97, slip: 0, episodes: 300 },
   },
 };
@@ -76,7 +78,7 @@ export interface Scenario {
 }
 
 /**
- * Cartes « histoires ». Les comportements annoncés sont vérifiés par tests/grid-scenarios.test.ts.
+ * Cartes « histoires ». Les comportements annoncés sont vérifiés par tests/grid-scenarios.test.ts.
  * Rappel des niveaux : curiosity 0 faible / 1 moyenne / 2 forte ; vision 0..4 (γ 0,5 → 0,99) ;
  * prudence 0 téméraire / 1 mesuré / 2 prudent ; impatience 0..4 (coût 0 → −1) ; memory 0..4 (α 0,05 → 1) ; world 0..3.
  */
@@ -84,10 +86,10 @@ export const SCENARIOS: Record<string, Scenario> = {
   cliff: {
     label: 'La falaise',
     description:
-      'Le chemin le plus court longe le bord d’une falaise (les pièges du bas). L’agent garde 10 % de pas au hasard et une mémoire lente (α = 0,1), pour des estimations stables. ' +
-      'En « mesuré » (Q-learning), le meilleur chemin en pointillés colle au bord : Q-learning évalue le chemin comme s’il ne faisait jamais d’écart. ' +
-      'Passez Prudence sur « prudent » (SARSA, même pénalité) puis réinitialisez : il apprend à marcher un rang plus haut, car il sait qu’un écart au hasard le ferait tomber. ' +
-      'Lancez « Comparer » (sous le graphique) pour voir les deux en même temps : pendant l’apprentissage, SARSA gagne en moyenne davantage, car Q-learning tombe plus souvent de la falaise en explorant.',
+      'Le chemin le plus court longe une falaise (la rangée de pièges du bas) ; l’agent garde 10 % de pas au hasard. ' +
+      'Regardez les pointillés bleus : en « mesuré » (Q-learning), ils collent au bord, car Q-learning évalue le chemin comme s’il ne faisait jamais de faux pas. ' +
+      'Passez Prudence sur « prudent » (SARSA), puis « Réinitialiser » : le chemin s’écarte du bord d’un rang ou plus, car SARSA compte avec ses pas au hasard, qui pourraient le faire tomber. ' +
+      '« Comparer » (sous le graphique) montre les deux côte à côte : en moyenne, la courbe de SARSA est plus haute, car il tombe moins souvent.',
     map: ['........', '........', '........', '........', '........', '........', '........', 'STTTTTTG'],
     personality: { curiosity: 0, vision: 4, prudence: 1, impatience: 4, memory: 1, world: 0 },
     episodes: 500,
@@ -95,9 +97,10 @@ export const SCENARIOS: Record<string, Scenario> = {
   detour: {
     label: 'Le grand détour',
     description:
-      'Un couloir de 7 pas bordé de pièges, ou un détour de 13 pas loin de tout danger. En « téméraire », l’agent fonce dans le couloir et y tombe parfois quand il explore. ' +
-      'Passez Prudence sur « prudent » et réinitialisez : il choisit le détour. ' +
-      'Autre expérience : restez « téméraire » mais rendez le monde « un peu glissant » : même Q-learning finit par préférer le détour, car le sol peut le pousser dans un piège.',
+      'Deux routes : un couloir de 7 pas entre deux rangées de pièges, ou un détour sûr de 13 pas. ' +
+      'Regardez les pointillés : l’agent « téméraire » passe par le couloir (et y tombe parfois quand il essaie une direction au hasard). ' +
+      'Passez Prudence sur « prudent », puis « Réinitialiser » : il prend le détour, car il sait qu’un faux pas dans le couloir coûte cher. ' +
+      'Variante : restez « téméraire » mais rendez le monde « un peu glissant » : lui aussi finit par préférer le détour.',
     map: ['........', '.######.', '.#....#.', '.#TTTT#.', 'S......G', '.#TTTT#.', '.######.', '........'],
     personality: { curiosity: 0, vision: 3, prudence: 0, impatience: 2, memory: 2, world: 0 },
     episodes: 300,
@@ -105,9 +108,10 @@ export const SCENARIOS: Record<string, Scenario> = {
   treasures: {
     label: 'Deux trésors',
     description:
-      'Un petit trésor (+3) à 2 pas, un grand (+10) à 6 pas. L’agent « myope » (γ = 0,7) prend le petit : pour lui, +10 dans 6 pas vaut 10 × 0,7⁵ ≈ 1,7, moins que +3 dans 2 pas (3 × 0,7 = 2,1). ' +
-      'Passez la Vision à long terme sur « équilibré » ou « prévoyant » et réinitialisez : il fait le chemin jusqu’au grand trésor. ' +
-      'La curiosité est forte : il faut avoir déjà découvert le grand trésor pour pouvoir le préférer.',
+      'Un petit trésor (+3) à 2 pas, un grand (+10) à 6 pas. Regardez les pointillés : l’agent « myope » (γ = 0,7) va au petit. ' +
+      'Pour lui, +10 dans 6 pas ne vaut que 10 × 0,7⁵ ≈ 1,7, moins que les 3 × 0,7 = 2,1 du petit trésor tout proche. ' +
+      'Passez la Vision à long terme sur « équilibré » ou plus, puis « Réinitialiser » : il fait le trajet jusqu’au grand trésor. ' +
+      '(Sa curiosité est forte : il faut d’abord avoir découvert le grand trésor pour pouvoir le préférer.)',
     map: ['........', '........', '..#.....', '.g.S....', '..#.....', '........', '......G.', '........'],
     personality: { curiosity: 2, vision: 1, prudence: 0, impatience: 0, memory: 2, world: 0 },
     episodes: 400,
@@ -115,8 +119,9 @@ export const SCENARIOS: Record<string, Scenario> = {
   empty: {
     label: 'Pièce vide',
     description:
-      'Une pièce sans obstacle : l’agent apprend en quelques dizaines d’épisodes. Les cases visitées virent d’abord au rouge (chaque pas coûte), ' +
-      'puis le vert se propage depuis l’arrivée vers le départ, épisode après épisode : la récompense « remonte » le chemin, case par case.',
+      'Une pièce vide : le plus simple pour voir l’apprentissage. Regardez les couleurs : les cases visitées virent d’abord au rouge (chaque pas coûte −0,1), ' +
+      'puis le vert part de l’étoile et remonte vers le départ, tentative après tentative : la récompense, reçue seulement à la fin, se propage case par case. ' +
+      'Baissez la vitesse pour suivre ce mouvement.',
     map: ['S.......', '........', '........', '........', '........', '........', '........', '.......G'],
     personality: { curiosity: 1, vision: 3, prudence: 0, impatience: 2, memory: 3, world: 0 },
     episodes: 100,

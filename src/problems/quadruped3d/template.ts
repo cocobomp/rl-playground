@@ -1,10 +1,23 @@
 // Gabarit HTML du robot 3D. Tous les identifiants sont préfixés par « quadruped3d- ».
 export const TEMPLATE = `
+<section class="quadruped3d-start" aria-label="Commencez ici">
+  <p class="quadruped3d-start-title">Commencez ici</p>
+  <ol>
+    <li>Le robot marche déjà : son « cerveau » (un petit réseau de neurones) a appris à l’avance. Environ 9&nbsp;m en 8&nbsp;s.</li>
+    <li>Cliquez sur <button type="button" id="quadruped3d-start-injury" class="primary quadruped3d-start-btn">Casser une patte</button>
+      puis sur <strong>Réapprendre</strong>. Il boite (environ 1&nbsp;m), puis la distance remonte vers 5 à 7&nbsp;m en 20 à 50
+      <em>générations</em> (à chaque génération, 24 variantes du cerveau sont essayées), soit moins d’une minute.</li>
+    <li>Quand la <strong>courbe</strong> ne monte plus, l’adaptation est faite.</li>
+  </ol>
+  <p class="quadruped3d-start-key"><strong>L’idée clé :</strong> même recette que le <strong>Robot marcheur 2D</strong>
+    (essayer des variantes au hasard, garder ce qui avance), mais en 3D. <strong>Sa limite :</strong> chaque essai coûte
+    beaucoup de calcul, donc apprendre de zéro prend des minutes, d’où le cerveau entraîné à l’avance.</p>
+</section>
 <div class="layout quadruped3d-root">
   <div class="col">
     <section class="panel" aria-label="Robot en 3D">
-      <p class="quadruped3d-badge"><strong>Expérimental.</strong> En 3D, chaque essai simule 8 secondes de physique complète :
-        l’apprentissage est nettement plus lent qu’en 2D (de l’ordre d’une génération par seconde, selon votre appareil).</p>
+      <p class="quadruped3d-badge"><strong>Expérimental.</strong> Chaque essai simule 8 secondes de physique 3D complète :
+        une à deux générations par seconde seulement, selon votre appareil.</p>
       <div class="quadruped3d-stage" id="quadruped3d-stage">
         <div class="quadruped3d-hud" id="quadruped3d-hud" aria-live="off"></div>
         <p class="quadruped3d-loading" id="quadruped3d-loading">Chargement du moteur physique…</p>
@@ -31,8 +44,9 @@ export const TEMPLATE = `
       <h2>Progrès de l’apprentissage</h2>
       <canvas id="quadruped3d-chart" class="quadruped3d-chart" aria-label="Distance parcourue en 8 secondes à chaque génération"></canvas>
       <p class="help">
-        Points : distance parcourue en 8 s par le cerveau de chaque génération. Ligne pleine : moyenne glissante sur 10 générations.
-        Pointillés : la note complète (distance moins les pénalités d’énergie, d’inclinaison et de chute).
+        Points : distance parcourue en 8 s par le cerveau de chaque génération. Ligne pleine : moyenne sur les 10 dernières générations.
+        Pointillés : la note (la « récompense » que l’apprentissage cherche à augmenter) : distance moins les pénalités d’énergie,
+        d’inclinaison et de chute. Quand la ligne pleine ne monte plus, l’apprentissage a fini de progresser.
       </p>
     </section>
 
@@ -88,7 +102,9 @@ export const TEMPLATE = `
         générateur de rythme, comme les circuits de la moelle épinière qui cadencent la marche des animaux :
         le réseau n’a plus qu’à apprendre quelle posture prendre à chaque instant du cycle, corrigée par ce qu’il ressent.
       </p>
-      <p>Il n’y a pas de professeur : seule une note est donnée à la fin de chaque essai de 8 secondes.</p>
+      <p>Il n’y a pas de professeur : seule une note (la <strong>récompense</strong>) est donnée à la fin de chaque essai de 8 secondes.
+        Apprendre par essais et erreurs à partir d’une telle note, c’est le principe du <em>reinforcement learning</em>
+        (apprentissage par renforcement).</p>
       <p class="formula">note = distance − a·énergie − b·inclinaison − chute</p>
       <ul>
         <li><strong>Stratégie d’évolution</strong> : à chaque génération, on crée des variantes du cerveau en ajoutant un petit
@@ -101,6 +117,11 @@ export const TEMPLATE = `
         <li><strong>Pourquoi un cerveau sain échoue après une blessure ?</strong> Il a appris des gestes adaptés à <em>son</em> corps.
           Avec une patte en moins ou un genou raide, ces mêmes gestes déséquilibrent le robot. L’évolution repart du cerveau
           existant : elle ne réinvente pas tout, elle ajuste ce qui sait déjà presque marcher, ce qui va bien plus vite que de zéro.</li>
+        <li><strong>Même principe qu’en 2D, et ses limites.</strong> L’algorithme est le même que pour le Robot marcheur 2D ; seuls
+          le corps et le monde changent. Mais une génération demande ici 25 essais de 480 pas de physique 3D (8 s à 60 images par
+          seconde), et chaque pas de physique 3D coûte bien plus cher qu’en 2D : partir de zéro demande une centaine de générations ou plus avant une
+          vraie démarche, et deux apprentissages identiques en apparence n’aboutissent pas à la même démarche. Les chercheurs
+          entraînent ce genre de robot sur des milliers d’essais en parallèle ; ici tout tourne dans votre navigateur.</li>
         <li><strong>Pré-entraînement</strong> : le cerveau chargé au départ a été entraîné hors ligne avec exactement la même
           simulation, puis enregistré (environ 25 minutes de calcul). Sa généalogie est instructive : appris de zéro sur le robot intact,
           puis adapté à la patte cassée, puis réadapté au robot intact ; ce détour lui a fait découvrir une démarche plus rapide que celle

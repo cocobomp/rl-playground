@@ -124,7 +124,7 @@ export const TRAITS: Trait[] = [
     levels: [memory('Tenace', 0.1), memory('Équilibrée', 0.5), memory('Impulsive', 1)],
     describe: (s) =>
       `α = ${fr(s.agent.alpha)} : chaque erreur de prédiction est corrigée à ${Math.round(Math.min(1, s.agent.alpha) * 100)} %` +
-      (s.agent.alpha < 0.2 ? ' — très stable mais lent : les premiers épisodes durent longtemps' : s.agent.alpha >= 1 ? ' — rapide, mais les estimations sautent davantage' : ''),
+      (s.agent.alpha < 0.2 ? ' — très stable mais lent : les premiers essais durent longtemps' : s.agent.alpha >= 1 ? ' — rapide, mais les estimations sautent davantage' : ''),
   },
 ];
 
@@ -160,19 +160,20 @@ export const SCENARIOS: Scenario[] = [
     id: 'momentum',
     label: 'Prendre de l’élan',
     description:
-      'Le moteur est trop faible pour gravir la pente d’une traite. La seule solution est contre-intuitive : reculer sur la pente de gauche, ' +
-      'puis redescendre pour prendre de l’élan. La récompense ne l’aide pas : −1 à chaque pas, rien d’autre jusqu’au drapeau. ' +
-      'Au début, la voiture tâtonne des centaines de pas. Regardez la carte des phases : la trajectoire dessine une spirale qui s’élargit ' +
-      '(chaque aller-retour gagne de l’énergie) jusqu’au bord droit. En général, après une cinquantaine d’épisodes, 100 à 150 pas suffisent.',
+      'Réglages de base : moteur trop faible pour monter d’une traite, −1 par pas et rien d’autre jusqu’au drapeau. ' +
+      'Regardez la courbe : les premiers essais durent souvent 1000 pas (la limite, sans voir le drapeau), puis elle chute vers ' +
+      '120 à 150 pas après une cinquantaine d’essais (en Turbo, quelques secondes). Regardez aussi la carte position × vitesse : ' +
+      'le trajet dessine une spirale qui s’élargit, car chaque aller-retour gagne de l’élan. C’est la stratégie contre-intuitive : reculer pour avancer.',
     apply: () => {},
   },
   {
     id: 'strong',
     label: 'Moteur surpuissant',
     description:
-      'Moteur ×3 : sa poussée (0,003) dépasse la plus forte traction de la pente (0,0025). Foncer vers la droite suffit, sans élan. ' +
-      'L’apprentissage est bien plus rapide (environ 35 pas par épisode au bout de quelques dizaines d’épisodes) et la carte « Action choisie » devient ' +
-      'presque entièrement « droite ». Morale : la difficulté venait des contraintes du monde, pas de l’algorithme.',
+      'Moteur ×3 : sa poussée (0,003) dépasse la plus forte traction de la pente (0,0025), foncer à droite suffit. ' +
+      'Regardez la courbe : elle descend vers 35 à 40 pas en quelques dizaines d’essais. Sur la carte « Action choisie », la zone où passe ' +
+      'la voiture devient « droite » (orange) : plus de spirale, elle fonce. Ailleurs, là où elle ne va jamais, la carte reste en désordre : ' +
+      'rien à y apprendre. Morale : la difficulté venait du monde (un moteur trop faible), pas de l’algorithme.',
     apply: (s) => {
       s.physics.force = 3;
     },
@@ -181,11 +182,11 @@ export const SCENARIOS: Scenario[] = [
     id: 'nocuriosity',
     label: 'Sans curiosité',
     description:
-      'ε = 0 : jamais d’action au hasard. On pourrait croire qu’elle va répéter sa première idée sans fin… et pourtant elle apprend, ' +
-      'souvent même un peu mieux. Pourquoi ? Les estimations partent de 0 alors que chaque pas coûte −1 : 0 est trop optimiste. ' +
-      'Chaque essai fait baisser l’estimation de ce qu’elle a fait ; ce qu’elle n’a pas essayé paraît donc meilleur, et elle va voir. ' +
+      'Jamais d’action au hasard (ε = 0). On s’attendrait à ce qu’elle répète sa première idée sans fin… ' +
+      'Regardez la courbe : elle apprend quand même, souvent un peu mieux. Pourquoi ? Ses estimations de départ valent 0 alors que ' +
+      'chaque pas coûte −1 : elles sont trop optimistes. Chaque essai la déçoit, donc ce qu’elle n’a pas encore essayé paraît meilleur, et elle va voir. ' +
       'Sur la carte « Coût restant », les zones jamais visitées restent vertes jusqu’à son passage. ' +
-      'Pour voir l’inverse, choisissez ensuite Curiosité « Méfiante » : même avec un peu de hasard, elle n’atteint presque jamais le drapeau.',
+      'Contre-épreuve : choisissez ensuite Curiosité « Méfiante » ; même avec un peu de hasard, elle n’atteint presque jamais le drapeau.',
     apply: (s) => {
       s.agent.epsilon = 0;
       s.agent.qInit = 0;
@@ -195,10 +196,11 @@ export const SCENARIOS: Scenario[] = [
     id: 'badreward',
     label: 'Récompense mal conçue',
     description:
-      'Pour « aider », on donne un bonus proportionnel à la vitesse (jusqu’à +4,2 par pas, contre −1 de coût). Selon les essais, elle atteint ' +
-      'd’abord le drapeau quelques dizaines de fois, ou jamais. Car arriver met fin aux bonus : se balancer sans fin rapporte plus. ' +
-      'Les épisodes finissent par durer 1000 pas (la limite) : la courbe remonte, alors que le « score perçu », bonus compris, est excellent. ' +
-      'L’agent ne se trompe pas : il optimise exactement ce qu’on lui a demandé. Comparez avec le coup de pouce « Énergie ».',
+      'Pour « aider », on ajoute un bonus proportionnel à la vitesse (jusqu’à +4,2 par pas, contre −1 de coût). ' +
+      'Regardez la courbe : selon les essais, elle atteint d’abord le drapeau quelques dizaines de fois (ou jamais), puis tous les essais ' +
+      'durent 1000 pas, la limite. Pendant ce temps, le « score perçu » (bonus compris) devient très positif. Car arriver met fin aux bonus : ' +
+      'se balancer sans fin rapporte plus. L’agent ne se trompe pas : il fait exactement ce qu’on lui a demandé, pas ce qu’on voulait. ' +
+      'Comparez avec le coup de pouce « Énergie », conçu pour ne pas changer le but.',
     apply: (s) => {
       s.physics.shaping = 'speed';
     },
@@ -283,8 +285,8 @@ export const EXPERT_SLIDERS: ExpertSlider[] = [
   {
     id: 'maxSteps',
     group: 'Épisodes',
-    label: 'Limite de pas par épisode',
-    help: 'Au-delà, l’épisode est interrompu (et compté comme un échec dans la courbe).',
+    label: 'Limite de pas par essai (épisode)',
+    help: 'Au-delà, l’essai est interrompu (et compté comme un échec dans la courbe).',
     min: 200, max: 3000, step: 100,
     get: (s) => s.physics.maxSteps, set: (s, v) => (s.physics.maxSteps = v), format: (v) => String(v),
   },

@@ -199,31 +199,36 @@ export function mount(root: HTMLElement): () => void {
     else if (generation === 0)
       msg = training
         ? 'Première génération en cours…'
-        : 'Prêt. Au départ, les poids sont tirés au hasard : le bâton tombe vite. Cliquez sur « Apprendre ».';
+        : 'Prêt. Au départ, les poids du réseau sont tirés au hasard : le bâton tombe vite. Cliquez sur « Apprendre ».';
     else {
       const m = recentMean();
       const unit = settings.algo === 'es' ? `génération ${generation}` : `épisode ${generation}`;
       const head = training ? `Apprentissage en cours (${unit})` : `En pause (${unit})`;
       const verdict =
         m >= SOLVED
-          ? 'L’agent tient presque toujours les 10 s.'
+          ? training && scenarioKey !== 'storm' && settings.world.windForce === 0
+            ? 'C’est appris : l’agent tient presque toujours les 10 s. Vous pouvez mettre en pause, ou essayer le scénario « Tempête ».'
+            : 'C’est appris : l’agent tient presque toujours les 10 s.'
+          : stormPhase === 'windy'
+            ? 'Avec les rafales, c’est plus dur : l’agent apprend à y résister, mais le score reste irrégulier selon le vent tiré.'
           : m >= 195
-            ? 'Il tient en moyenne plus de 195 pas : c’est le seuil historique de « problème résolu », mais pas encore parfait.'
+            ? 'Il tient plus de 195 pas (près de 4 s) : c’était le seuil « résolu » de la version historique à 200 pas. Pas encore parfait…'
             : 'Il progresse…';
-      msg = `${head} — moyenne récente ${fmtNum(m)} pas. ${verdict}`;
+      msg = `${head} — score moyen récent : ${fmtNum(m)} pas sur 500 (${fmtSec(m)}). ${verdict}`;
     }
     el.textContent = flashStatus ? `${flashStatus} ${msg}` : msg;
+    el.classList.toggle('cartpole-status-done', !workerFailed && generation > 0 && recentMean() >= SOLVED);
   }
 
   function updateLabels() {
     const es = settings.algo === 'es';
-    $('st-iter-label').textContent = es ? 'Génération' : 'Épisode';
-    $('st-last-label').textContent = es ? 'Moyenne population' : 'Moyenne (20 derniers)';
+    $('st-iter-label').textContent = es ? 'Génération (ronde d’essais)' : 'Épisode (partie)';
+    $('st-last-label').textContent = es ? 'Score moyen (pas tenus)' : 'Score moyen (20 dernières)';
     btnUnit.textContent = es ? 'Une génération' : '10 épisodes';
     $('chart-title').textContent = es ? 'Pas tenus par génération' : 'Pas tenus par épisode';
     $('chart-help').textContent = es
-      ? 'Points et ligne pleine : score moyen de la population à chaque génération (ligne lissée sur 5 générations). Pointillés : meilleur individu. Maximum : 500 pas. Traits verticaux : le monde a changé.'
-      : 'Points : pas tenus à chaque épisode. Ligne : moyenne glissante sur 20 épisodes. Maximum : 500 pas. Remarquez les dents de scie et les rechutes, typiques de REINFORCE. Traits verticaux : le monde a changé.';
+      ? 'Points et ligne pleine : nombre moyen de pas tenus par les variantes de chaque génération (ligne lissée sur 5 générations). Pointillés : la meilleure variante. Quand la ligne plafonne à 500 (10 s), c’est appris. Traits verticaux : le monde a changé.'
+      : 'Points : pas tenus à chaque partie. Ligne : moyenne glissante sur 20 parties. Maximum : 500 pas (10 s). Remarquez les dents de scie et les rechutes, typiques de REINFORCE. Traits verticaux : le monde a changé.';
   }
 
   function updateStats() {
@@ -427,7 +432,7 @@ export function mount(root: HTMLElement): () => void {
       championGen === 0
         ? 'Agent débutant (poids au hasard)'
         : settings.algo === 'es'
-          ? `Meilleur individu de la génération ${championGen}`
+          ? `Meilleure variante de la génération ${championGen}`
           : `Politique après ${championGen} épisodes`;
     replayAcc = 0;
   }

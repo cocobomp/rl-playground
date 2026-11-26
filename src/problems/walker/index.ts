@@ -32,6 +32,8 @@ const PRETRAINED: Record<'healthy' | 'injured', BrainJSON> = {
 const MAX_GENERATIONS = 1500;
 /** Pause entre deux essais rediffusés (ms). */
 const HOLD_MS = 1600;
+/** Sans nouveau record depuis ce nombre de générations, on signale que l'apprentissage plafonne. */
+const PLATEAU_GENS = 80;
 
 interface Champion {
   params: Float64Array;
@@ -641,7 +643,7 @@ export function mount(root: HTMLElement): () => void {
   function updateChartHelp() {
     $('chart-help').textContent =
       chartMode === 'score'
-        ? 'Score de chaque génération (formule dans « Ce que le robot cherche »). La meilleure variante monte vite ; la moyenne suit : c’est tout le groupe qui progresse.'
+        ? 'Score (la récompense) de chaque génération, formule dans « Ce que le robot cherche ». La meilleure variante monte vite ; la moyenne suit : c’est tout le groupe qui progresse. Quand les courbes deviennent plates, l’apprentissage a atteint son plafond.'
         : 'Distance parcourue en 10 s (m). Le score inclut aussi l’énergie, les chutes et l’inclinaison : une distance qui baisse un peu peut aller avec un meilleur score.';
   }
   updateChartHelp();
@@ -680,19 +682,29 @@ export function mount(root: HTMLElement): () => void {
 
   function updateStatus() {
     let msg: string;
+    let done = false;
     if (workerFailed) msg = 'Le calcul en arrière-plan (Web Worker) n’a pas pu démarrer dans ce navigateur : la rediffusion fonctionne, mais pas l’apprentissage.';
-    else if (generation >= MAX_GENERATIONS) msg = `Arrêt automatique après ${MAX_GENERATIONS} générations.`;
+    else if (generation >= MAX_GENERATIONS) {
+      msg = `Arrêt automatique après ${MAX_GENERATIONS} générations.`;
+      done = true;
+    }
     else if (pool.isRunning) {
       msg =
         generation === 0
           ? 'Première génération en cours…'
           : `Apprentissage en cours : génération ${generation} (${fmt(lastGenMs / 1000, 1)} s par génération, ${settings.es.popSize} essais de 10 s au plus). Le robot affiché est le meilleur cerveau trouvé jusqu’ici.`;
+      if (champion.source === 'learned' && generation - champion.gen >= PLATEAU_GENS) {
+        msg += ` Plus de progrès depuis ${generation - champion.gen} générations : l’apprentissage a sans doute atteint son plafond, vous pouvez cliquer sur « Pause ».`;
+        done = true;
+      }
       worldChangedMsg = '';
     } else if (worldChangedMsg) msg = worldChangedMsg;
     else if (runStarted && generation > 0) msg = `En pause à la génération ${generation}.`;
     else if (champion.source === 'random') msg = 'Cerveau au hasard. Cliquez sur « Apprendre ».';
     else msg = 'Le robot rejoue son meilleur essai. Cliquez sur « Apprendre » pour continuer l’entraînement, ou essayez une intervention.';
-    $('status').textContent = msg;
+    const st = $('status');
+    st.textContent = msg;
+    st.classList.toggle('walker-status-done', done);
   }
 
   // ---------------------------------------------------------------------------

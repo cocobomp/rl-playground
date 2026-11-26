@@ -23,9 +23,9 @@ import { onResize, onThemeChange, prepareCanvas, rafLoop } from '../../shared/ui
 
 const SPEED_HELP: Record<Speed, string> = {
   slow: 'Un pas par image : suivez chaque décision de la voiture.',
-  normal: 'Cinq pas par image : un premier épisode dure quelques secondes.',
-  fast: 'Quarante pas par image : les épisodes s’enchaînent.',
-  turbo: 'Des dizaines d’épisodes par seconde, calculés en arrière-plan (Web Worker). La vallée rejoue le dernier épisode terminé.',
+  normal: 'Cinq pas par image : un premier essai dure quelques secondes.',
+  fast: 'Quarante pas par image : les essais s’enchaînent.',
+  turbo: 'Des dizaines d’essais par seconde, calculés en arrière-plan. La vallée rejoue le dernier essai terminé.',
 };
 
 const ALGO_HELP = {
@@ -131,7 +131,7 @@ export function mount(root: HTMLElement): () => void {
   const world = $('world');
   const forceSlider = makeSlider(world, 'force', {
     label: 'Moteur plus puissant',
-    help: 'Multiplie la poussée du moteur. À gravité normale, vers ×2 foncer à droite commence à suffire : la spirale disparaît de la carte des phases. Au-delà de ×2,5, le moteur l’emporte même sur la partie la plus raide.',
+    help: 'Multiplie la poussée du moteur. À gravité normale, vers ×2 foncer à droite commence à suffire : la spirale disparaît de la carte position × vitesse. Au-delà de ×2,5, le moteur l’emporte même sur la partie la plus raide.',
     min: 0.5, max: 4, step: 0.25,
     format: (v) => `×${fr(v, 2)}`,
     onInput: (v) => {
@@ -308,7 +308,7 @@ export function mount(root: HTMLElement): () => void {
       const lo = phaseImage ? fr(phaseImage.minCost, 0) : '0';
       const hi = phaseImage ? fr(phaseImage.maxCost, 0) : '–';
       L.innerHTML = `<span class="mountaincar-grad" style="background: linear-gradient(90deg, rgb(${t.good}), ${t.cell}, rgb(${t.bad}))"></span>
-        <span>Coût restant estimé (−max Q) : vert = drapeau proche ou zone encore inconnue (${lo}), rouge = encore loin (${hi}).</span>`;
+        <span>Coût restant estimé par l’agent (à peu près le nombre de pas restants, les plus lointains comptant un peu moins) : vert = drapeau proche ou zone encore inconnue (${lo}), rouge = encore loin (${hi}).</span>`;
     } else {
       L.innerHTML = `<span class="mountaincar-key"><i style="background:${colors.left}"></i>gauche</span>
         <span class="mountaincar-key"><i style="background:${t.muted}"></i>rien</span>
@@ -448,6 +448,7 @@ export function mount(root: HTMLElement): () => void {
     }
     chartDirty = phaseDirty = true;
     updateStats();
+    updateStatus();
   }
 
   function turboTick() {
@@ -478,20 +479,32 @@ export function mount(root: HTMLElement): () => void {
 
   function updateStatus() {
     let msg = message;
+    let done = false;
     if (!msg) {
       const rec = trainer.history.slice(-10);
       const timeouts = rec.filter((r) => !r.goal).length;
+      const goals10 = rec.length - timeouts;
+      const last20 = trainer.history.slice(-20);
+      const avg20 = last20.length ? Math.round(last20.reduce((a, r) => a + r.steps, 0) / last20.length) : 0;
       if (running) {
-        msg = speed === 'turbo' ? 'Turbo : l’agent enchaîne les épisodes en arrière-plan…' : 'L’agent apprend…';
+        msg =
+          (speed === 'turbo' ? 'Turbo : l’agent enchaîne les essais en arrière-plan…' : 'L’agent apprend…') +
+          (trainer.episode > 0 ? ` Drapeau atteint ${goals10} fois sur les ${rec.length} derniers essais.` : ' Premier essai : la voiture tâtonne.');
         if (trainer.episode >= 10 && settings.physics.shaping === 'speed' && timeouts >= 8 && rec[rec.length - 1].ret > 0)
           msg = 'Score perçu positif, mais la voiture n’arrive plus : elle se balance pour encaisser le bonus de vitesse.';
         else if (trainer.episode >= 20 && timeouts >= 10)
-          msg = 'Aucune arrivée depuis 10 épisodes : l’agent ne trouve pas le drapeau. Regardez sa curiosité.';
+          msg = 'Aucune arrivée depuis 10 essais : l’agent ne trouve pas le drapeau. Regardez sa curiosité.';
+        else if (trainer.episode >= 40 && settings.physics.shaping !== 'speed' && last20.every((r) => r.goal)) {
+          msg = `L’essentiel est appris : la voiture arrive à chaque essai, en ${avg20} pas en moyenne (contre ${trainer.history[0].steps} au premier essai). ` +
+            'Mettez en pause et cliquez sur « Tester » pour la voir faire sans hasard, ou essayez un scénario.';
+          done = true;
+        }
       } else if (trainer.episode === 0 && trainer.stepInEpisode === 0)
         msg = 'Prêt. Cliquez sur « Démarrer » : au début, la voiture tâtonne longtemps, la récompense ne lui dit rien avant le drapeau.';
-      else msg = 'En pause.';
+      else msg = 'En pause. « Reprendre » continue l’apprentissage ; « Tester » montre la stratégie actuelle, sans hasard.';
     }
     statusEl.textContent = msg;
+    statusEl.classList.toggle('mountaincar-status-done', done);
   }
 
   // ---------- Boucle d’animation ----------
@@ -572,7 +585,7 @@ export function mount(root: HTMLElement): () => void {
         chart,
         trainer.history.map((r) => r.steps),
         { raw: t.chartRaw, avg: t.chartAvg, axis: t.border, text: t.muted },
-        { window: 20, xLabel: 'épisode', emptyText: 'La courbe apparaît à la fin du premier épisode' },
+        { window: 20, xLabel: 'essai', emptyText: 'La courbe apparaît à la fin du premier essai' },
       );
       chartDirty = false;
       lastChartRender = now;

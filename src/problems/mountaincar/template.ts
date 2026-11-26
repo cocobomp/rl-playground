@@ -1,5 +1,19 @@
 // Gabarit HTML de « Voiture dans la vallée ». Identifiants préfixés par « mountaincar- ».
 export const TEMPLATE = `
+<section class="mountaincar-start" aria-label="Commencez ici">
+  <p class="mountaincar-start-title">Commencez ici</p>
+  <ol>
+    <li>Cliquez sur <strong>Démarrer</strong>. La voiture doit atteindre le drapeau à droite, mais son moteur est trop faible pour
+      monter d’un coup. Son premier essai (un « épisode ») dure souvent 1000 pas, la limite, sans jamais voir le drapeau.</li>
+    <li>Passez la vitesse sur <strong>Turbo</strong> et regardez la courbe du bas chuter : après une cinquantaine d’essais,
+      120 à 150 pas suffisent. Cliquez alors sur <strong>Tester</strong> : la voiture recule d’abord vers la gauche pour prendre de l’élan.</li>
+    <li>Puis essayez le scénario <strong>Récompense mal conçue</strong> : un « coup de pouce » maladroit lui fait oublier le drapeau.</li>
+  </ol>
+  <p class="mountaincar-start-key">L’idée clé : la seule <strong>récompense</strong> (le signal « bien / pas bien » que reçoit l’agent) est −1 à
+    chaque pas, jusqu’au drapeau. Aucun indice en chemin : c’est une <strong>récompense rare</strong>. L’agent doit découvrir seul une stratégie
+    <strong>contre-intuitive</strong> : reculer pour avancer. Et si l’on « aide » avec une récompense mal pensée, il optimise ce qu’on lui a
+    demandé, pas ce qu’on voulait.</p>
+</section>
 <div class="layout mountaincar-root">
   <div class="col">
     <section class="panel" aria-label="La vallée">
@@ -18,27 +32,28 @@ export const TEMPLATE = `
       <p class="help" id="mountaincar-speed-help"></p>
 
       <dl class="stats">
-        <div><dt>Épisode</dt><dd id="mountaincar-st-episode">0</dd></div>
-        <div><dt>Pas (en cours)</dt><dd id="mountaincar-st-step">0</dd></div>
-        <div><dt>Pas pour arriver (moy. 20)</dt><dd id="mountaincar-st-avg">–</dd></div>
-        <div><dt>Score perçu (dernier)</dt><dd id="mountaincar-st-ret">–</dd></div>
+        <div><dt>Essais (épisodes)</dt><dd id="mountaincar-st-episode">0</dd></div>
+        <div><dt>Pas (essai en cours)</dt><dd id="mountaincar-st-step">0</dd></div>
+        <div><dt>Pas pour arriver (moy. 20 essais)</dt><dd id="mountaincar-st-avg">–</dd></div>
+        <div><dt>Score perçu (dernier essai)</dt><dd id="mountaincar-st-ret">–</dd></div>
       </dl>
+      <p class="help mountaincar-stats-help">Score perçu : total des récompenses reçues par l’agent pendant l’essai (−1 par pas, plus l’éventuel « coup de pouce »).</p>
       <p id="mountaincar-status" class="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="panel" aria-label="Espace des phases">
+    <section class="panel" aria-label="Carte position × vitesse">
       <div class="mountaincar-phase-head">
-        <h2>Ce que l’agent a appris : l’espace des phases</h2>
+        <h2>Ce que l’agent a appris : la carte position × vitesse</h2>
         <div class="segmented mountaincar-seg" id="mountaincar-phase-mode" role="group" aria-label="Carte affichée">
           <button type="button" data-mode="value" class="active" aria-pressed="true">Coût restant</button>
           <button type="button" data-mode="policy" aria-pressed="false">Action choisie</button>
         </div>
       </div>
-      <canvas id="mountaincar-phase" class="mountaincar-phase" aria-label="Carte position × vitesse : valeurs apprises et trajectoire de l’épisode"></canvas>
+      <canvas id="mountaincar-phase" class="mountaincar-phase" aria-label="Carte position × vitesse : valeurs apprises et trajectoire de l’essai"></canvas>
       <div class="legend mountaincar-legend" id="mountaincar-legend"></div>
       <p class="help">
-        Chaque point est un état : la <strong>position</strong> (horizontalement) et la <strong>vitesse</strong> (verticalement,
-        vers le haut = vers la droite). Le trait coloré est le trajet de l’épisode : une <strong>spirale</strong> qui s’élargit,
+        Chaque point est une situation possible (un « état », que les physiciens appellent l’espace des phases) : la <strong>position</strong> (horizontalement) et la <strong>vitesse</strong> (verticalement,
+        vers le haut = vers la droite). Le trait coloré est le trajet de l’essai en cours : une <strong>spirale</strong> qui s’élargit,
         car chaque aller-retour gagne de l’élan, jusqu’à toucher le bord droit (le drapeau). Cliquez sur la carte pour tester
         la stratégie apprise à partir de cet état.
       </p>
@@ -46,10 +61,10 @@ export const TEMPLATE = `
 
     <section class="panel" aria-label="Graphique">
       <h2>Pas nécessaires pour atteindre le drapeau</h2>
-      <canvas id="mountaincar-chart" class="mountaincar-chart" aria-label="Nombre de pas par épisode"></canvas>
+      <canvas id="mountaincar-chart" class="mountaincar-chart" aria-label="Nombre de pas par essai"></canvas>
       <p class="help">
-        Points : durée de chaque épisode (plus bas = mieux ; un épisode interrompu à la limite compte pour la limite).
-        Ligne : moyenne glissante sur 20 épisodes. Cette courbe mesure le vrai but, quel que soit le « coup de pouce ».
+        Points : durée de chaque essai (plus bas = mieux ; un essai interrompu à la limite compte pour la limite).
+        Ligne : moyenne des 20 derniers essais. Cette courbe mesure le vrai but, quel que soit le « coup de pouce ».
       </p>
     </section>
   </div>
@@ -115,7 +130,11 @@ export const TEMPLATE = `
       <h3>Apprendre : Sarsa(λ)</h3>
       <p>Après chaque pas, l’agent compare ce qu’il prévoyait à ce qu’il vient de vivre :</p>
       <p class="formula">δ = r + γ · Q(s′, a′) − Q(s, a)<br />w ← w + (α / n) · δ · e</p>
-      <p>(n est le nombre de grilles : chaque poids actif reçoit sa part de la correction.)</p>
+      <p>
+        δ est l’erreur de prédiction ; r la récompense du pas (−1) ; γ = 0,99 le poids du futur (un pas lointain compte un peu
+        moins qu’un pas proche) ; α le pas d’apprentissage ; n le nombre de grilles (chaque poids actif reçoit sa part de la correction).
+        Q(s, a) est la <strong>valeur</strong> estimée : ce que l’agent pense encore récolter en faisant a dans l’état s.
+      </p>
       <p>
         Les <strong>traces d’éligibilité</strong> e retiennent les tuiles visitées récemment (en s’effaçant d’un facteur γλ à chaque
         pas) : quand la voiture atteint enfin le drapeau, le mérite remonte d’un coup vers les dizaines de décisions précédentes,

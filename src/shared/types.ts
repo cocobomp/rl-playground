@@ -20,6 +20,8 @@ export interface ProblemInfo {
   /** Algorithmes utilisés. */
   algorithms: string;
   level: 'Découverte' | 'Intermédiaire' | 'Avancé' | 'Expérimental';
+  /** Temps indicatif pour saisir l'idée (ex. « 2 min »), affiché dans le parcours. Facultatif. */
+  duration?: string;
   /** Chargement paresseux (le code 3D, lourd, n'est téléchargé que si on l'ouvre). */
   load: () => Promise<ProblemModule>;
 }

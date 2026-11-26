@@ -178,26 +178,26 @@ export const SCENARIOS: Record<string, Scenario> = {
   balance: {
     label: 'Apprendre à tenir en équilibre',
     description:
-      'Le problème classique. Au départ, le réseau a des poids tirés au hasard : le bâton tombe en moins d’une seconde. ' +
-      'Génération après génération, la courbe grimpe vers 500 pas (10 s, le maximum). Pendant le replay, regardez le réseau : ' +
-      'quels capteurs ont les liens les plus épais, et comment la sortie bascule de ← à → quand le bâton penche.',
+      'Le problème classique, avec un réseau de neurones aux poids tirés au hasard : au départ, le bâton tombe en une fraction de seconde. ' +
+      'Regardez la courbe : elle grimpe vers 500 pas (10 s, le maximum) en une vingtaine de générations, parce qu’à chaque génération on garde la direction des meilleures variantes. ' +
+      'Regardez aussi le réseau pendant le rejeu : la décision bascule de ← à → dès que le bâton commence à pencher.',
     apply: () => {},
   },
   storm: {
     label: 'Tempête',
     description:
-      'Une histoire en trois actes. 1) L’agent apprend par temps calme jusqu’à tenir 500 pas. 2) Le vent se lève automatiquement (rafales fortes) : ' +
-      'l’agent, jamais confronté au vent, perd une bonne partie de son score — la courbe chute (trait vertical). 3) L’apprentissage continue, avec le vent cette fois : ' +
-      'l’agent devient plus robuste et la courbe remonte en partie. Un comportement appris ne vaut que pour les situations rencontrées à l’entraînement.',
+      'Regardez la courbe en trois actes. 1) Par temps calme, l’agent apprend jusqu’à tenir 500 pas. 2) Le vent se lève tout seul (trait vertical) : ' +
+      'la courbe chute (vers 300 pas environ), parce que l’agent n’a jamais rencontré de rafales. 3) L’apprentissage continue avec le vent : la courbe remonte en partie, ' +
+      'en dents de scie (selon les rafales tirées). À retenir : un comportement appris ne vaut que pour les situations vues à l’entraînement.',
     apply: () => {},
     storm: true,
   },
   linear: {
     label: 'Cerveau trop petit ?',
     description:
-      'Cerveau simple : la décision est le signe de a·position + b·vitesse + c·angle + d·vitesse angulaire + e, soit 5 nombres. ' +
-      'Surprise honnête : ça marche aussi ! Près de la verticale, le pendule se comporte presque comme un système linéaire, et les automaticiens savent ' +
-      'qu’une règle linéaire bien réglée suffit à le stabiliser. Selon le tirage, il lui faut parfois plus de générations. Le réseau de neurones devient indispensable sur des problèmes moins réguliers (comme le robot marcheur).',
+      'Cerveau simple : la décision est le signe de a·position + b·vitesse + c·angle + d·vitesse de rotation + e, soit 5 nombres à régler. ' +
+      'Regardez la courbe : elle monte plus lentement, mais atteint 500 pas elle aussi. Près de la verticale, le pendule se comporte presque comme un système linéaire, ' +
+      'et une règle linéaire bien réglée suffit à le stabiliser. Le réseau de neurones devient indispensable sur des problèmes moins réguliers (comme le robot marcheur).',
     apply: (s) => {
       s.es.brain = 'linear';
     },
@@ -206,8 +206,8 @@ export const SCENARIOS: Record<string, Scenario> = {
     label: 'Bâton très court',
     description:
       'Bâton de 30 cm au lieu de 1 m : sans aide, il passe de 0,6° à 12° en 0,56 s au lieu de 0,98 s. Essayez d’abord « À vous de jouer » : ' +
-      'pour un humain, c’est presque injouable. Puis lancez l’apprentissage : l’agent, qui décide 50 fois par seconde, s’en sort à peu près aussi bien qu’avec le bâton normal. ' +
-      'La difficulté dépend de qui joue : ce qui est dur pour nos réflexes ne l’est pas forcément pour une machine rapide.',
+      'pour un humain, c’est presque injouable. Puis lancez l’apprentissage et regardez la courbe : l’agent, qui décide 50 fois par seconde, y arrive à peu près aussi vite qu’avec le bâton normal. ' +
+      'Ce qui est dur pour nos réflexes ne l’est pas forcément pour une machine rapide.',
     apply: (s) => {
       s.world.halfLength = 0.15;
     },

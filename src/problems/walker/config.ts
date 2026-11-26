@@ -132,7 +132,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Un cerveau entraîné à l’avance (environ 750 générations de 48 essais) sur le robot intact. Regardez la démarche : elle n’a rien d’humain (torse penché, pas rapides), mais elle avance vite, environ 27 m en 10 s, sans tomber. Notez cette distance dans le tableau des mesures.',
+      'Un cerveau entraîné à l’avance (environ 800 générations de 48 essais) sur le robot intact. Regardez la démarche : elle n’a rien d’humain (torse penché, pas rapides), mais elle avance vite, environ 27 m en 10 s, sans tomber. Elle respecte pourtant le score à la lettre : aller loin sans tomber, personne n’a demandé de marcher « joliment ». Notez cette distance dans le tableau des mesures.',
   },
   injuredBefore: {
     label: 'Blessure au genou : avant adaptation',
@@ -156,7 +156,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'random',
     autoTrain: true,
     description:
-      'Un cerveau tiré au hasard : au début, le robot s’effondre en une ou deux secondes. L’apprentissage démarre tout de suite. Suivez la courbe : en général, il tient debout après quelques dizaines de générations, puis avance de plus en plus vite. Ajoutez une blessure quand vous voulez.',
+      'Un cerveau tiré au hasard : au début, le robot s’effondre en une ou deux secondes. L’apprentissage démarre tout de suite. Regardez la courbe et le robot : en général, il tient debout après quelques dizaines de générations, puis avance de plus en plus loin (souvent une vingtaine de mètres après 300 générations, soit une à deux minutes). Sa démarche ne ressemblera sans doute pas à celle du cerveau pré-entraîné : le score dit quoi atteindre, pas comment marcher. Ajoutez une blessure quand vous voulez.',
   },
 };
 

@@ -1,6 +1,18 @@
 // Gabarit HTML du labyrinthe (injecté dans le conteneur fourni par le shell).
-// Tous les identifiants sont préfixés par « grid- » pour éviter les collisions.
+// Tous les identifiants sont préfixés par « grid- » pour éviter les collisions.
 export const TEMPLATE = `
+<section class="grid-start" aria-label="Commencez ici">
+  <p class="grid-start-title">Commencez ici</p>
+  <ol>
+    <li>Cliquez sur <strong>Démarrer</strong>. Le rond orange (l’agent) ne sait rien : il cherche l’étoile ★ (+10) par essais et erreurs,
+      une tentative (un «&nbsp;épisode&nbsp;») après l’autre, en évitant les pièges ✕.</li>
+    <li>Regardez les cases se colorer : <span class="grid-good">vert</span> =&nbsp;«&nbsp;d’ici, je finis par gagner&nbsp;»,
+      <span class="grid-bad">rouge</span> =&nbsp;«&nbsp;d’ici, je perds&nbsp;». Le vert part de l’étoile et remonte jusqu’au départ :
+      la récompense, reçue seulement à la fin, se propage case par case.</li>
+    <li>Ensuite, essayez un <button type="button" class="grid-link" id="grid-goto-scenarios">scénario</button>
+      («&nbsp;La falaise&nbsp;», «&nbsp;Deux trésors&nbsp;»…) et changez la personnalité de l’agent.</li>
+  </ol>
+</section>
 <div class="layout grid-root">
   <div class="col">
     <section class="panel" aria-label="Grille">
@@ -22,6 +34,10 @@ export const TEMPLATE = `
         <button id="grid-btn-run" class="primary">Démarrer</button>
         <button id="grid-btn-step">Pas à pas</button>
         <button id="grid-btn-reset">Réinitialiser</button>
+        <label class="grid-speed" for="grid-speed">Vitesse
+          <input type="range" id="grid-speed" min="1" max="10" step="1" />
+          <output id="grid-speed-out" for="grid-speed"></output>
+        </label>
       </div>
 
       <div class="map-actions">
@@ -33,33 +49,34 @@ export const TEMPLATE = `
       </div>
 
       <dl class="stats">
-        <div><dt>Épisode</dt><dd id="grid-st-episode">0</dd></div>
-        <div><dt>Pas (épisode)</dt><dd id="grid-st-step">0</dd></div>
-        <div><dt>ε actuel</dt><dd id="grid-st-eps">1,00</dd></div>
-        <div><dt>Dernière récompense</dt><dd id="grid-st-last">–</dd></div>
+        <div><dt>Tentative (épisode)</dt><dd id="grid-st-episode">0</dd></div>
+        <div><dt>Pas dans la tentative</dt><dd id="grid-st-step">0</dd></div>
+        <div><dt>Part de hasard (ε)</dt><dd id="grid-st-eps">100&nbsp;%</dd></div>
+        <div><dt>Gain de la dernière</dt><dd id="grid-st-last">–</dd></div>
       </dl>
       <p id="grid-status" class="status" role="status"></p>
 
       <div class="legend grid-legend">
-        <span><span class="grad"></span> Valeur apprise V(s) = max Q : rouge = mauvais, vert = bon.</span>
-        <span>Pointillés bleus : meilleur chemin appris. Trait orange : trajet de l’épisode en cours.</span>
+        <span><span class="grad"></span> Couleur d’une case = sa valeur apprise : ce que l’agent espère gagner en partant de là (rouge = perte, vert = gain).</span>
+        <span>Flèche : direction préférée sur cette case. Pointillés bleus : meilleur chemin appris. Trait orange : trajet de la tentative en cours.</span>
       </div>
     </section>
 
     <section class="panel" aria-label="Graphique">
-      <h2>Récompense par épisode</h2>
+      <h2>Gain total par tentative</h2>
       <canvas id="grid-chart" class="grid-chart" aria-label="Courbe de la récompense totale par épisode"></canvas>
       <p class="help">
-        Points clairs : récompense de chaque épisode. Ligne : moyenne glissante sur 20 épisodes.
-        Une courbe qui monte puis se stabilise = l’agent a appris.
+        Points clairs : gain total de chaque tentative (étoile +10, piège, moins le coût des pas).
+        Ligne : moyenne des 20 dernières. Une courbe qui monte puis se stabilise = l’agent a appris.
       </p>
     </section>
 
     <section class="panel" aria-label="Comparer Q-learning et SARSA">
       <h2>Comparer Q-learning et SARSA</h2>
       <p class="help">
-        Deux agents identiques apprennent en même temps sur la carte ci-dessus, avec les mêmes réglages :
-        seule leur façon de tirer les leçons diffère. Essayez sur « La falaise » ou « Le grand détour ».
+        Deux agents apprennent en même temps sur la carte ci-dessus, avec les mêmes réglages. Seule différence :
+        Q-learning évalue chaque case comme s’il ne faisait plus jamais de faux pas ; SARSA compte avec les pas au hasard
+        qu’il fait vraiment. Chargez « La falaise », cliquez sur « Comparer » et regardez par où passent les pointillés de chacun.
       </p>
       <div class="controls">
         <button id="grid-cmp-run" class="primary">Comparer</button>
@@ -78,34 +95,33 @@ export const TEMPLATE = `
         </figure>
       </div>
       <canvas id="grid-cmp-chart" class="grid-cmp-chart" aria-label="Récompense moyenne par épisode des deux algorithmes"></canvas>
-      <p class="help">Courbes : moyenne glissante (20 épisodes) de la récompense de chaque agent, pendant l’apprentissage (exploration comprise).</p>
+      <p class="help">Courbes : gain moyen des 20 dernières tentatives de chaque agent, pendant l’apprentissage (pas au hasard compris).</p>
       <p id="grid-cmp-status" class="status" role="status"></p>
     </section>
   </div>
 
   <div class="col">
+    <section class="panel" aria-label="Scénarios" id="grid-scenarios-panel">
+      <h2>Scénarios</h2>
+      <p class="help">Chaque scénario charge une carte et une personnalité, et dit quoi regarder. Puis cliquez sur «&nbsp;Démarrer&nbsp;». Trop lent&nbsp;? Montez le curseur «&nbsp;Vitesse&nbsp;» sous la grille.</p>
+      <div class="presets" id="grid-scenarios"></div>
+      <p id="grid-scenario-info" class="preset-info">Choisissez un scénario, puis cliquez sur « Démarrer ».</p>
+    </section>
+
     <section class="panel" aria-label="Personnalité de l’agent">
       <h2>Personnalité de l’agent</h2>
       <p class="help grid-intro">
-        Réglez le caractère de l’agent en langage courant. Chaque trait modifie un ou deux paramètres techniques,
-        affichés après la flèche (et dans « Paramètres experts » plus bas). Les changements s’appliquent tout de suite ;
-        « Réinitialiser » fait tout réapprendre avec la nouvelle personnalité.
+        Réglez le caractère de l’agent. Sous chaque trait, « → » montre le réglage technique correspondant.
+        L’effet est immédiat ; « Réinitialiser » fait tout réapprendre avec la nouvelle personnalité.
       </p>
       <div id="grid-traits" class="grid-traits"></div>
-    </section>
-
-    <section class="panel" aria-label="Scénarios">
-      <h2>Scénarios</h2>
-      <p class="help">Chaque scénario charge une carte et une personnalité, puis raconte quoi observer.</p>
-      <div class="presets" id="grid-scenarios"></div>
-      <p id="grid-scenario-info" class="preset-info">Choisissez un scénario, puis cliquez sur « Démarrer ».</p>
     </section>
 
     <section class="panel" aria-label="Réglages techniques">
       <h2>Expériences sur les réglages</h2>
       <p class="help">Ces boutons ne changent pas la carte : ils montrent l’effet de réglages extrêmes.</p>
       <div class="presets" id="grid-presets"></div>
-      <p id="grid-preset-info" class="preset-info">Choisissez une expérience pour voir l’effet des paramètres, puis cliquez sur « Démarrer ».</p>
+      <p id="grid-preset-info" class="preset-info">Choisissez une expérience pour voir l’effet des paramètres, puis cliquez sur « Démarrer ».</p>
 
       <details class="expert" id="grid-expert">
         <summary>Paramètres experts</summary>
@@ -123,7 +139,7 @@ export const TEMPLATE = `
       <h2>Comment ça marche ?</h2>
       <p>
         L’agent garde un tableau <strong>Q(case, action)</strong> : pour chaque case et chacune des 4 directions, une
-        estimation de « combien je vais gagner au total si je fais ça ». À chaque pas, il compare ce qu’il espérait à ce
+        estimation de « combien je vais gagner au total si je fais ça ». À chaque pas, il compare ce qu’il espérait à ce
         qu’il vient de vivre et corrige son estimation :
       </p>
       <p class="formula">Q(s, a) ← Q(s, a) + α · [ r + γ · Q(s′, a′) − Q(s, a) ]</p>
@@ -144,7 +160,7 @@ export const TEMPLATE = `
           Avec γ = 0,5, un gain 5 pas plus loin ne vaut déjà plus que 3&nbsp;% ; avec γ = 0,99, encore 95&nbsp;%.</li>
         <li><strong>Prudence</strong> = l’algorithme (Q-learning ou SARSA) et la pénalité des pièges.</li>
         <li><strong>Impatience</strong> = le coût de chaque pas : plus il est élevé, plus les longs trajets coûtent cher.</li>
-        <li><strong>Mémoire</strong> = α, la part de l’écart « attendu / vécu » corrigée à chaque expérience.</li>
+        <li><strong>Mémoire</strong> = α, la part de l’écart « attendu / vécu » corrigée à chaque expérience.</li>
         <li><strong>Monde imprévisible</strong> = la glissance : une partie des actions part dans une direction au hasard.
           Contrairement à l’exploration, l’agent subit ce hasard même quand il veut bien faire : Q-learning en tient donc
           compte lui aussi.</li>

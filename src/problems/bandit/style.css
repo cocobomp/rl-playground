@@ -362,3 +362,30 @@
 .bandit-human-intro {
   margin-bottom: 4px;
 }
+
+/* Encadré « Commencez ici » */
+.bandit-start {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.bandit-start-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.bandit-start ol {
+  margin: 0;
+  padding-left: 1.3em;
+}
+.bandit-start li + li {
+  margin-top: 2px;
+}
+.bandit-takeaway {
+  margin: 6px 0 0;
+}

@@ -3,6 +3,17 @@ export const TEMPLATE = `
 <div class="layout bandit-root">
   <div class="col">
     <section class="panel" aria-label="Machines à sous">
+      <div class="bandit-start" id="bandit-start">
+        <p class="bandit-start-title">Commencez ici</p>
+        <ol>
+          <li>Cliquez sur <strong>« Démarrer »</strong> : quatre stratégies jouent sur les mêmes machines, sans connaître leurs chances de gain.</li>
+          <li>Suivez le graphique <strong>« Regret »</strong> (plus bas) : les pièces perdues face à quelqu’un qui jouerait toujours la meilleure machine. Plus bas = mieux.</li>
+          <li>Puis jouez vous-même (« À vous de jouer ») ou essayez un scénario.</li>
+        </ol>
+        <p class="bandit-takeaway"><strong>À retenir :</strong> essayer d’autres machines (<em>explorer</em>) coûte des pièces tout de suite ;
+          ne jamais le faire (<em>exploiter</em> seulement) risque de vous enfermer pour toujours sur une machine médiocre.
+          Les bonnes stratégies dosent les deux.</p>
+      </div>
       <div class="bandit-topbar">
         <div class="segmented bandit-seg" role="group" aria-label="Mode">
           <button data-mode="race" class="active" aria-pressed="true">Course des stratégies</button>
@@ -24,7 +35,7 @@ export const TEMPLATE = `
       <p class="help bandit-barlegend">
         <span class="bandit-key bandit-key-est"></span> estimation
         <span class="bandit-key bandit-key-ci"></span> incertitude (≈ 95 %)
-        <span class="bandit-key bandit-key-ucb" id="bandit-key-ucb"></span><span id="bandit-key-ucb-text"> bonus UCB</span>
+        <span class="bandit-key bandit-key-ucb" id="bandit-key-ucb"></span><span id="bandit-key-ucb-text"> bonus d’optimisme (UCB)</span>
         <span class="bandit-key bandit-key-true"></span> vraie probabilité (si révélée)
       </p>
 
@@ -55,7 +66,7 @@ export const TEMPLATE = `
 
     <section class="panel" id="bandit-chart-panel" aria-label="Graphique de la course">
       <div class="bandit-chart-head">
-        <h2 id="bandit-chart-title">Regret cumulé</h2>
+        <h2 id="bandit-chart-title">Regret : pièces perdues</h2>
         <div class="segmented bandit-seg" role="group" aria-label="Mesure affichée">
           <button data-metric="regret" class="active" aria-pressed="true">Regret</button>
           <button data-metric="best" aria-pressed="false">% meilleure machine</button>
@@ -89,7 +100,7 @@ export const TEMPLATE = `
       <h2>Le casino</h2>
       <div class="sliders" id="bandit-world"></div>
       <label class="check bandit-check"><input type="checkbox" id="bandit-change" /> Le casino change les réglages à mi-partie</label>
-      <p class="help">À mi-partie, le classement des machines est inversé (la meilleure devient la pire). Relance la partie.</p>
+      <p class="help">À mi-partie, le classement des machines est inversé (la meilleure devient la pire). Recommence la partie.</p>
 
       <h2>La personnalité des joueurs</h2>
       <div class="sliders" id="bandit-agent"></div>
@@ -118,13 +129,14 @@ export const TEMPLATE = `
         (r = 1 si gagné, 0 sinon ; n = nombre de parties sur cette machine). C’est simplement la moyenne de tous ses résultats :</p>
       <p class="formula">Q ← Q + (r − Q) / n</p>
       <ul>
-        <li><strong>Regret</strong> : ce qu’on a perdu, en moyenne, par rapport à quelqu’un qui jouerait toujours la meilleure
+        <li><strong>Regret</strong> (pièces perdues) : ce qu’on a perdu, en moyenne, par rapport à quelqu’un qui jouerait toujours la meilleure
           machine. À chaque coup on ajoute (p de la meilleure − p de la machine jouée). Un regret qui se stabilise = la
           stratégie a trouvé la bonne machine ; une droite qui monte = elle se trompe en permanence.</li>
         <li><strong>Glouton pur</strong> : n’explore jamais. Si la meilleure machine perd à son premier essai, son estimation
           reste à 0 : dès qu’une autre machine a gagné une fois, il ne reviendra plus jamais à la meilleure.</li>
-        <li><strong>ε-greedy</strong> : explore au hasard une fois sur 1/ε environ. Il finit par tout essayer, mais continue
-          à gaspiller des pièces sur des machines qu’il sait mauvaises.</li>
+        <li><strong>Glouton + hasard</strong> (en anglais <em>ε-greedy</em>) : à chaque coup, avec une probabilité ε, il joue
+          une machine au hasard (ε = 0,1 : environ une fois sur 10). Il finit par tout essayer, mais continue à gaspiller
+          des pièces sur des machines qu’il sait mauvaises.</li>
         <li><strong>UCB</strong> (« borne de confiance haute ») = <em>optimisme face à l’incertitude</em> : on joue la
           machine dont la valeur <em>pourrait</em> être la plus haute, compte tenu de ce qu’on sait.</li>
       </ul>
@@ -138,7 +150,7 @@ export const TEMPLATE = `
           d’où une exploration automatique qui s’éteint d’elle-même à mesure que les courbes se resserrent.</li>
         <li><strong>Mémoire courte</strong> : au lieu de la moyenne, on utilise un pas constant α,
           Q ← Q + α · (r − Q). Avec la moyenne, le n-ième résultat ne pèse que 1/n : après 200 parties, un changement
-          de réglage met des centaines de coups à se voir. Avec α = 0,1, les résultats anciens perdent 10 % de leur
+          de réglage peut mettre une centaine de coups ou plus à se voir. Avec α = 0,1, les résultats anciens perdent 10 % de leur
           poids à chaque nouvelle partie de la machine, et l’estimation suit les changements.</li>
       </ul>
       <p class="help">

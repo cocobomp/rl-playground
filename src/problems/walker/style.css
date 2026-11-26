@@ -211,3 +211,36 @@
   font-size: 0.82rem;
   white-space: normal;
 }
+
+/* Encadré « Commencez ici » */
+.walker-start {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 0.93rem;
+}
+.walker-start-title {
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.walker-start ol {
+  margin: 0;
+  padding-left: 1.3em;
+  display: grid;
+  gap: 4px;
+}
+.walker-start-key {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+.walker-start-key strong,
+.walker-start-key em {
+  color: var(--text);
+}
+.walker-status-done {
+  font-weight: 600;
+  color: var(--accent);
+}

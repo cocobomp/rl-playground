@@ -116,3 +116,38 @@
   font-size: 0.95rem;
   margin: 16px 0 6px;
 }
+
+/* Commencez ici */
+.mountaincar-start {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 0.93rem;
+}
+.mountaincar-start-title {
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.mountaincar-start ol {
+  margin: 0;
+  padding-left: 1.3em;
+  display: grid;
+  gap: 4px;
+}
+.mountaincar-start-key {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+.mountaincar-start-key strong {
+  color: var(--text);
+}
+.mountaincar-stats-help {
+  margin-top: 6px;
+}
+.mountaincar-status-done {
+  font-weight: 600;
+  color: var(--accent);
+}

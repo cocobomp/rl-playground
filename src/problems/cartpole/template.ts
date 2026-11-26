@@ -1,5 +1,17 @@
 // Gabarit HTML du pendule inversé. Tous les identifiants sont préfixés par « cartpole- ».
 export const TEMPLATE = `
+<section class="cartpole-start" aria-label="Commencez ici">
+  <p class="cartpole-start-title">Commencez ici</p>
+  <ol>
+    <li>Cliquez sur <strong>Apprendre</strong>. Au début, l’agent pousse au hasard : le bâton tombe aussitôt.</li>
+    <li>Regardez la <strong>courbe</strong> grimper en une quinzaine de secondes vers 500 pas (10&nbsp;s, le maximum) : à chaque
+      « génération », 30 variantes de l’agent sont essayées et les meilleures montrent la voie.</li>
+    <li>Puis essayez le scénario <strong>Tempête</strong> ou <strong>À vous de jouer</strong>.</li>
+  </ol>
+  <p class="cartpole-start-key">L’idée clé : la situation (position, angle, vitesses) est faite de nombres réels, jamais deux fois identiques.
+    Impossible de tout noter dans un tableau comme dans le labyrinthe : un petit <strong>réseau de neurones</strong> transforme ce que l’agent
+    « sent » en décision.</p>
+</section>
 <div class="layout cartpole-root">
   <div class="col">
     <section class="panel" aria-label="Pendule inversé">
@@ -9,7 +21,7 @@ export const TEMPLATE = `
           <button type="button" data-mode="human" aria-pressed="false">À vous de jouer</button>
         </div>
         <div class="cartpole-speed" id="cartpole-speed-wrap">
-          <span class="cartpole-speed-label" id="cartpole-speed-label">Replay</span>
+          <span class="cartpole-speed-label" id="cartpole-speed-label">Vitesse du rejeu</span>
           <div class="segmented" role="group" aria-labelledby="cartpole-speed-label" id="cartpole-speed">
             <button type="button" data-speed="0.5">×0,5</button>
             <button type="button" data-speed="1" class="active">×1</button>
@@ -31,7 +43,7 @@ export const TEMPLATE = `
           <div><dt id="cartpole-st-iter-label">Génération</dt><dd id="cartpole-st-iter">0</dd></div>
           <div><dt id="cartpole-st-last-label">Dernière moyenne</dt><dd id="cartpole-st-last">–</dd></div>
           <div><dt>Record (pas)</dt><dd id="cartpole-st-best">–</dd></div>
-          <div><dt>Épisodes joués</dt><dd id="cartpole-st-eps">0</dd></div>
+          <div><dt>Parties jouées (épisodes)</dt><dd id="cartpole-st-eps">0</dd></div>
         </dl>
         <p id="cartpole-status" class="status" role="status"></p>
       </div>
@@ -60,27 +72,28 @@ export const TEMPLATE = `
       </div>
     </section>
 
-    <section class="panel" aria-label="Cerveau de l’agent">
-      <h2>Le cerveau de l’agent, en direct</h2>
-      <canvas id="cartpole-net" class="cartpole-net" role="img" aria-label="Réseau de neurones de l’agent : capteurs, neurones cachés et décision"></canvas>
-      <p class="help">
-        À gauche, les 4 capteurs (divisés par une échelle fixe pour être de l’ordre de 1). Couleur des ronds : activation
-        (<span class="cartpole-key cartpole-key-pos"></span> positive, <span class="cartpole-key cartpole-key-neg"></span> négative, pâle = proche de 0).
-        Liens : épaisseur = force du poids, couleur = son signe. Ce sont ces poids que l’apprentissage règle.
-      </p>
-    </section>
-
     <section class="panel" aria-label="Graphique">
       <h2 id="cartpole-chart-title">Pas tenus par génération</h2>
       <canvas id="cartpole-chart" class="cartpole-chart" role="img" aria-label="Courbe du nombre de pas tenus au fil de l’apprentissage"></canvas>
       <p class="help" id="cartpole-chart-help"></p>
+    </section>
+
+    <section class="panel" aria-label="Cerveau de l’agent">
+      <h2>Le cerveau de l’agent, en direct</h2>
+      <canvas id="cartpole-net" class="cartpole-net" role="img" aria-label="Réseau de neurones de l’agent : capteurs, neurones cachés et décision"></canvas>
+      <p class="help">
+        À gauche, les 4 capteurs (ramenés à des nombres de l’ordre de 1) ; à droite, la décision : pousser à gauche ou à droite.
+        Couleur d’un rond : signal du neurone en ce moment (<span class="cartpole-key cartpole-key-pos"></span> positif,
+        <span class="cartpole-key cartpole-key-neg"></span> négatif, pâle = proche de 0). Chaque lien est un « poids » : un nombre qui
+        amplifie ou inverse le signal (épaisseur = force, couleur = signe). Apprendre, c’est régler ces poids.
+      </p>
     </section>
   </div>
 
   <div class="col">
     <section class="panel" aria-label="Scénarios">
       <h2>Scénarios</h2>
-      <p class="help">Chaque scénario règle le monde et l’agent, repart de zéro et raconte quoi observer. Cliquez ensuite sur « Apprendre ».</p>
+      <p class="help">Chaque scénario règle le monde et l’agent, repart de zéro et vous dit quoi regarder. Cliquez ensuite sur « Apprendre ».</p>
       <div class="presets" id="cartpole-scenarios"></div>
       <p id="cartpole-scenario-info" class="preset-info">Choisissez un scénario, ou réglez le monde et l’agent ci-dessous.</p>
     </section>
@@ -107,7 +120,8 @@ export const TEMPLATE = `
       <h2>Comment ça marche ?</h2>
       <p>
         Le chariot doit garder le bâton à moins de 12° de la verticale sans sortir de la piste (±2,4 m), pendant 500 pas de 0,02 s (10 s).
-        Chaque pas tenu rapporte +1. L’agent « sent » 4 nombres continus : position, vitesse, angle, vitesse angulaire.
+        Une partie s’appelle un <em>épisode</em> ; chaque pas tenu rapporte +1 point (la <em>récompense</em>), donc le score d’un épisode
+        est simplement le nombre de pas tenus. L’agent « sent » 4 nombres continus : position, vitesse, angle, vitesse de rotation du bâton.
       </p>
       <h3>Pourquoi un réseau plutôt qu’un tableau ?</h3>
       <p>
@@ -118,14 +132,14 @@ export const TEMPLATE = `
       <p class="formula">décision = tanh( W₂ · tanh( W₁ · capteurs + b₁ ) + b₂ ) → signe = côté où pousser</p>
       <h3>Stratégie d’évolution</h3>
       <ul>
-        <li>On part de poids θ. On fabrique une population de variantes θ ± σ·ε (bruit gaussien ε, par paires opposées).</li>
+        <li>On part d’un jeu de poids θ (tous les nombres du réseau). On fabrique une <em>population</em> de variantes θ ± σ·ε : de petites modifications au hasard (bruit gaussien ε, par paires opposées). Une ronde d’essais s’appelle une <em>génération</em>.</li>
         <li>Chaque variante joue quelques épisodes (les mêmes départs et les mêmes rafales pour toutes, pour une comparaison juste). Son score = pas tenus en moyenne.</li>
-        <li>On classe les variantes et on déplace θ vers celles qui ont le mieux réussi (gradient estimé, optimiseur Adam). Aucune dérivée du chariot n’est nécessaire : seulement des scores.</li>
-        <li>À l’écran, on rejoue le <strong>meilleur individu</strong> de la dernière génération. La courbe montre la moyenne de la population (points et ligne) et le meilleur individu (pointillés).</li>
+        <li>On classe les variantes et on déplace θ vers celles qui ont le mieux réussi (une direction de progrès estimée à partir des scores, appliquée avec l’optimiseur Adam). Aucune équation du chariot n’est nécessaire : seulement des scores.</li>
+        <li>À l’écran, on rejoue la <strong>meilleure variante</strong> de la dernière génération. La courbe montre la moyenne de la population (points et ligne) et la meilleure variante (pointillés).</li>
       </ul>
       <h3>REINFORCE</h3>
       <p>
-        Un seul agent, une politique <em>aléatoire</em> : P(pousser →) = σ(w · capteurs + b). Après chaque épisode, chaque action
+        Un seul agent, dont la stratégie (la <em>politique</em>) est <em>aléatoire</em> : P(pousser →) = σ(w · capteurs + b). Après chaque épisode, chaque action
         est renforcée si elle a été suivie d’une survie plus longue que la moyenne de l’épisode (cette moyenne sert de <em>ligne de base</em>) :
       </p>
       <p class="formula">w ← w + α · Σₜ Âₜ · ∇ log π(aₜ | sₜ)</p>
@@ -133,7 +147,7 @@ export const TEMPLATE = `
         où Âₜ est le retour Gₜ = rₜ + γ·rₜ₊₁ + … centré et réduit sur l’épisode. Comme tout repose sur un seul épisode tiré au sort,
         l’estimation est très bruitée : la courbe monte, mais en dents de scie, avec des rechutes, et elle dépend beaucoup du taux d’apprentissage.
         Il faut aussi des centaines de mises à jour (une par épisode), contre quelques dizaines de générations pour l’évolution
-        — mais une génération coûte, elle, 90 épisodes avec les réglages par défaut (30 variantes × 3 épisodes). Comparez la case « Épisodes joués » : en nombre d’épisodes, les deux méthodes sont ici du même ordre de grandeur.
+        — mais une génération coûte, elle, 90 épisodes avec les réglages par défaut (30 variantes × 3 épisodes). Comparez la case « Parties jouées » : en nombre d’épisodes, les deux méthodes sont ici du même ordre de grandeur.
       </p>
       <h3>Ce que les réglages changent vraiment</h3>
       <ul>

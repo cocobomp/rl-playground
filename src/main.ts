@@ -1,6 +1,8 @@
 import './style.css';
 import { PROBLEMS } from './problems/index';
 import { h } from './shared/ui';
+import { renderGlossary, renderHome, renderNext } from './shell/pages';
+import { GLOSSARY_ID, navId, parseRoute } from './shell/route';
 
 // Mode intégré (iframe) : ?embed=1 masque le titre du site et le pied de page,
 // garde le menu des problèmes et les explications, et annonce la hauteur de la
@@ -28,63 +30,48 @@ let navToken = 0;
 
 function buildNav() {
   nav.append(h(`<a href="#/" data-id="">Accueil</a>`));
-  for (const p of PROBLEMS) {
+  PROBLEMS.forEach((p, i) => {
     const a = h<HTMLAnchorElement>(`<a></a>`);
     a.href = `#/${p.id}`;
     a.dataset.id = p.id;
-    a.textContent = p.title;
+    a.textContent = `${i + 1}. ${p.title}`;
     nav.append(a);
-  }
+  });
+  nav.append(h(`<a href="#/${GLOSSARY_ID}" data-id="${GLOSSARY_ID}" class="nav-glossary">Glossaire</a>`));
 }
 
-function renderHome(root: HTMLElement) {
-  const page = h(`
-    <div class="home">
-      <p class="lead">
-        Le <strong>reinforcement learning</strong> (apprentissage par renforcement), c’est apprendre par essais et erreurs :
-        un agent agit, reçoit une récompense ou une punition, et ajuste son comportement pour gagner davantage.
-        Chaque problème ci-dessous illustre une idée différente, du plus simple au plus ambitieux.
-      </p>
-      <div class="cards"></div>
-    </div>`);
-  const cards = page.querySelector('.cards')!;
-  PROBLEMS.forEach((p, i) => {
-    const card = h<HTMLAnchorElement>(`
-      <a class="card">
-        <span class="card-top"><span class="card-num"></span><span class="badge"></span></span>
-        <strong class="card-title"></strong>
-        <span class="card-tagline"></span>
-        <span class="card-concept"></span>
-        <span class="card-algo"></span>
-      </a>`);
-    card.href = `#/${p.id}`;
-    card.querySelector('.card-num')!.textContent = String(i + 1);
-    const badge = card.querySelector('.badge')!;
-    badge.textContent = p.level;
-    badge.classList.add(`lvl-${p.level.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')}`);
-    card.querySelector('.card-title')!.textContent = p.title;
-    card.querySelector('.card-tagline')!.textContent = p.tagline;
-    card.querySelector('.card-concept')!.textContent = `Idée : ${p.concept}`;
-    card.querySelector('.card-algo')!.textContent = `Algorithmes : ${p.algorithms}`;
-    cards.append(card);
-  });
-  root.append(page);
-}
+let firstRoute = true;
 
 async function route() {
   const token = ++navToken;
-  const id = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
+  const r = parseRoute(location.hash, PROBLEMS.map((p) => p.id));
+  const id = navId(r);
   cleanup?.();
   cleanup = null;
   app.replaceChildren();
   nav.querySelectorAll('a').forEach((a) => a.classList.toggle('active', (a as HTMLElement).dataset.id === id));
   // Sur mobile le menu défile horizontalement : on amène l'onglet actif en vue.
-  nav.querySelector('a.active')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  // (Pas de scrollIntoView : dans une iframe, il ferait aussi défiler la page hôte.)
+  const active = nav.querySelector<HTMLElement>('a.active');
+  if (active) nav.scrollLeft = active.offsetLeft - nav.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  // Changer de page depuis le bas (bloc « Et ensuite ? ») : on repart du haut.
+  if (!firstRoute && !(r.kind === 'glossary' && r.term)) {
+    window.scrollTo(0, 0);
+    // Dans une iframe agrandie à sa hauteur, c'est la page hôte qui défile :
+    // on lui demande de ramener le haut de l'application en vue.
+    if (embed && window.parent !== window) window.parent.postMessage({ type: 'rl-playground:navigate' }, '*');
+  }
+  firstRoute = false;
 
-  const problem = PROBLEMS.find((p) => p.id === id);
+  if (r.kind === 'glossary') {
+    document.title = 'Glossaire · Bac à sable RL';
+    renderGlossary(app, PROBLEMS, r.term);
+    return;
+  }
+  const problem = r.kind === 'problem' ? PROBLEMS.find((p) => p.id === r.id) : undefined;
   if (!problem) {
     document.title = 'Bac à sable RL';
-    renderHome(app);
+    renderHome(app, PROBLEMS);
     return;
   }
   document.title = `${problem.title} · Bac à sable RL`;
@@ -101,6 +88,8 @@ async function route() {
     const root = h(`<div class="problem-root"></div>`);
     app.append(root);
     cleanup = mod.mount(root);
+    // Rendu par le shell, après le problème : aucun code de problème à modifier.
+    app.append(renderNext(PROBLEMS, problem));
   } catch (err) {
     if (token !== navToken) return;
     loading.textContent = 'Impossible de charger ce problème. Rechargez la page.';

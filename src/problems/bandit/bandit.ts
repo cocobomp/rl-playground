@@ -187,7 +187,7 @@ export type StrategyId = 'greedy' | 'egreedy' | 'ucb' | 'thompson';
 
 export const STRATEGIES: Array<{ id: StrategyId; label: string }> = [
   { id: 'greedy', label: 'Glouton pur' },
-  { id: 'egreedy', label: 'ε-greedy' },
+  { id: 'egreedy', label: 'Glouton + hasard' },
   { id: 'ucb', label: 'UCB' },
   { id: 'thompson', label: 'Thompson' },
 ];
