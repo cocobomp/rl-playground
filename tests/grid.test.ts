@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PARAMS, GridWorld, Params, Trainer, mulberry32 } from '../src/rl';
+import { DEFAULT_PARAMS, GridWorld, Params, Trainer, mulberry32 } from '../src/problems/grid/rl';
 
 const UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3;
 const rewards = { goal: 10, trap: -10, step: -1 };
@@ -136,7 +136,7 @@ describe('Convergence', () => {
 
 describe('Carte et préréglages de l’application', () => {
   it('la carte par défaut est résolue avec le préréglage « équilibré »', async () => {
-    const { DEFAULT_MAP, DEFAULT_SETTINGS, PRESETS } = await import('../src/config');
+    const { DEFAULT_MAP, DEFAULT_SETTINGS, PRESETS } = await import('../src/problems/grid/config');
     const world = GridWorld.fromStrings(DEFAULT_MAP);
     const settings = { ...DEFAULT_SETTINGS, rewards: { ...DEFAULT_SETTINGS.rewards }, ...PRESETS.balanced.settings } as Params;
     const t = new Trainer(world, settings, mulberry32(3));
@@ -147,7 +147,7 @@ describe('Carte et préréglages de l’application', () => {
   });
 
   it('« explore trop » ne réduit jamais ε', async () => {
-    const { DEFAULT_MAP, DEFAULT_SETTINGS, PRESETS } = await import('../src/config');
+    const { DEFAULT_MAP, DEFAULT_SETTINGS, PRESETS } = await import('../src/problems/grid/config');
     const settings = { ...DEFAULT_SETTINGS, rewards: { ...DEFAULT_SETTINGS.rewards }, ...PRESETS.explore.settings } as Params;
     const t = new Trainer(GridWorld.fromStrings(DEFAULT_MAP), settings, mulberry32(4));
     for (let i = 0; i < 20; i++) t.runEpisode();
