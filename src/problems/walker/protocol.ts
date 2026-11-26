@@ -6,17 +6,20 @@ export type ToWorker =
   | {
       type: 'init';
       runId: number;
-      /** Numéro de ce worker et nombre total : chacun évalue les candidats i tels que i % count === index. */
+      /** Numéro de ce worker. */
       index: number;
-      count: number;
       seed: number;
       init: number[];
       config: WorldConfig;
       objectives: Objectives;
       es: ESSettings;
     }
-  /** Une génération : on transmet d'abord les scores de la précédente (null au début). */
-  | { type: 'gen'; runId: number; fitness: number[] | null }
+  /**
+   * Une génération : on transmet d'abord les scores de la précédente (null au début).
+   * `active` : nombre de workers qui calculent cette génération (les autres tiennent seulement leur copie à jour).
+   * Le worker i < active évalue les candidats j tels que j % active === i : le résultat ne dépend pas de ce nombre.
+   */
+  | { type: 'gen'; runId: number; fitness: number[] | null; active: number }
   | { type: 'objectives'; objectives: Objectives }
   | { type: 'hyper'; es: ESSettings };
 

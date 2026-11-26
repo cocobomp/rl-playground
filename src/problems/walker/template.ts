@@ -3,10 +3,10 @@ export const TEMPLATE = `
 <section class="walker-start" aria-label="Commencez ici">
   <p class="walker-start-title">Commencez ici</p>
   <ol>
-    <li>Regardez le robot : son «&nbsp;cerveau&nbsp;» a déjà appris à marcher. Sa démarche est étrange, mais il parcourt environ 27&nbsp;m en 10&nbsp;s.</li>
+    <li>Regardez le robot : son «&nbsp;cerveau&nbsp;» a déjà appris à marcher. Sa démarche est étrange, mais il parcourt environ 28&nbsp;m en 10&nbsp;s.</li>
     <li>Blessez-le : cochez <strong>Bloquer le genou gauche</strong> (ou choisissez le scénario <strong>Blessure au genou</strong>). Le même cerveau ne fait plus qu’environ 11&nbsp;m.</li>
-    <li>Cliquez sur <strong>Réapprendre</strong> et suivez la courbe : en quelques dizaines de «&nbsp;générations&nbsp;» (tours d’essais),
-      il invente une nouvelle démarche et retrouve sa distance.</li>
+    <li>Cliquez sur <strong>Réapprendre</strong> et suivez la courbe : en quelques «&nbsp;générations&nbsp;» (tours d’essais),
+      il invente une nouvelle démarche et retrouve presque sa distance. Les <strong>Moments clés</strong> permettent ensuite de revoir n’importe quelle étape.</li>
   </ol>
   <p class="walker-start-key">L’idée clé : on ne lui explique jamais <em>comment</em> marcher. On lui donne seulement un <strong>score</strong>
     (la «&nbsp;récompense&nbsp;») : aller loin, sans trop dépenser d’énergie, sans tomber. Il cherche tout ce qui fait monter ce score… au pied de la lettre,
@@ -18,11 +18,18 @@ export const TEMPLATE = `
       <div class="walker-stage-wrap">
         <canvas id="walker-stage" class="stage-canvas walker-stage" role="img" aria-label="Le robot marcheur vu de côté, la caméra le suit"></canvas>
       </div>
+      <div id="walker-viewing" class="walker-viewing" hidden>
+        <p class="walker-viewing-text" role="status"><strong id="walker-viewing-title"></strong> <span id="walker-viewing-sub"></span></p>
+        <div class="walker-viewing-actions">
+          <button id="walker-btn-stop-compare" class="ghost" type="button" hidden>Arrêter la comparaison</button>
+          <button id="walker-btn-live" class="primary" type="button">Revenir au direct</button>
+        </div>
+      </div>
       <p class="legend walker-legend">
         <span><span class="walker-sw walker-sw-left"></span>jambe gauche</span>
         <span><span class="walker-sw walker-sw-right"></span>jambe droite</span>
         <span><span class="walker-sw walker-sw-contact"></span>pied au sol</span>
-        <span><span class="walker-sw walker-sw-ghost"></span>fantôme : robot intact, cerveau sain</span>
+        <span id="walker-ghost-legend-item"><span class="walker-sw walker-sw-ghost"></span><span id="walker-ghost-legend">fantôme : robot intact, cerveau sain</span></span>
       </p>
 
       <div class="controls">
@@ -30,6 +37,12 @@ export const TEMPLATE = `
         <button id="walker-btn-adapt" type="button" title="Continue l’évolution à partir du cerveau affiché, dans le monde actuel">Réapprendre</button>
         <button id="walker-btn-scratch" type="button">Repartir de zéro</button>
       </div>
+      <div class="map-actions walker-lspeed-row">
+        <span class="walker-inline-label" id="walker-lspeed-label">Vitesse d’apprentissage :</span>
+        <div class="segmented" id="walker-lspeed" role="group" aria-labelledby="walker-lspeed-label" aria-describedby="walker-lspeed-help"></div>
+        <span id="walker-gps" class="walker-gps" aria-live="off"></span>
+      </div>
+      <p class="help walker-lspeed-help" id="walker-lspeed-help"></p>
       <div class="map-actions">
         <label class="check"><input type="checkbox" id="walker-ghost" checked /> Fantôme</label>
         <span class="walker-inline-label" id="walker-speed-label">Lecture :</span>
@@ -46,6 +59,36 @@ export const TEMPLATE = `
       <p id="walker-status" class="status" role="status"></p>
     </section>
 
+    <section class="panel" aria-label="Progrès et moments clés">
+      <div class="walker-chart-head">
+        <h2 id="walker-chart-title">Progrès et moments clés</h2>
+        <div class="segmented" id="walker-chart-mode" role="group" aria-label="Grandeur affichée">
+          <button type="button" data-mode="score" class="active" aria-pressed="true">Score</button>
+          <button type="button" data-mode="distance" aria-pressed="false">Distance</button>
+        </div>
+      </div>
+      <div class="walker-chart-wrap">
+        <canvas id="walker-chart" class="walker-chart" aria-label="Courbe du meilleur score et du score moyen par génération ; cliquez pour revoir la génération la plus proche"></canvas>
+        <canvas id="walker-chart-marks" class="walker-chart-marks" aria-hidden="true"></canvas>
+      </div>
+      <p class="help walker-chart-legend">
+        <span><span class="walker-line walker-line-mean"></span>moyenne des variantes testées</span>
+        <span><span class="walker-line walker-line-best"></span>meilleure variante</span>
+        <span><span class="walker-mark-sw"></span>moment clé (cliquez sur la courbe)</span>
+      </p>
+      <p class="help" id="walker-chart-help"></p>
+
+      <h3 class="walker-h3">Moments clés</h3>
+      <p class="help">Pendant l’apprentissage, le cerveau est photographié aux moments intéressants : le départ, le premier essai sans chute,
+        chaque palier de distance, les records, avant et après une blessure. Cliquez sur un moment pour revoir cette génération
+        (l’apprentissage continue pendant ce temps). « Comparer » la fait marcher à côté, en fantôme.</p>
+      <div class="walker-scrub">
+        <div class="slider-head"><label for="walker-scrub" id="walker-scrub-label">Parcourir les générations enregistrées</label><output id="walker-scrub-out" for="walker-scrub"></output></div>
+        <input type="range" id="walker-scrub" min="0" max="0" step="1" value="0" />
+      </div>
+      <ol id="walker-moments" class="walker-moments" aria-label="Moments clés"></ol>
+    </section>
+
     <section class="panel" aria-label="Mesures">
       <h2>Tableau des mesures</h2>
       <p class="help">Chaque essai affiché (10 s au plus) est noté ici. Même cerveau + même monde = exactement le même essai : la simulation est déterministe.</p>
@@ -57,21 +100,7 @@ export const TEMPLATE = `
       </div>
     </section>
 
-    <section class="panel" aria-label="Graphique">
-      <div class="walker-chart-head">
-        <h2 id="walker-chart-title">Progrès de l’apprentissage</h2>
-        <div class="segmented" id="walker-chart-mode" role="group" aria-label="Grandeur affichée">
-          <button type="button" data-mode="score" class="active" aria-pressed="true">Score</button>
-          <button type="button" data-mode="distance" aria-pressed="false">Distance</button>
-        </div>
-      </div>
-      <canvas id="walker-chart" class="walker-chart" aria-label="Courbe du meilleur score et du score moyen par génération"></canvas>
-      <p class="help walker-chart-legend">
-        <span><span class="walker-line walker-line-mean"></span>moyenne des variantes testées</span>
-        <span><span class="walker-line walker-line-best"></span>meilleure variante</span>
-      </p>
-      <p class="help" id="walker-chart-help"></p>
-    </section>
+
   </div>
 
   <div class="col">

@@ -75,7 +75,7 @@
 }
 .quadruped3d-brain {
   width: 100%;
-  height: 170px;
+  height: 230px;
   display: block;
 }
 .quadruped3d-interventions {
@@ -158,4 +158,187 @@
 .quadruped3d-status-done {
   font-weight: 600;
   color: var(--accent);
+}
+
+/* Rejeu d'une génération passée */
+.quadruped3d-viewing {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border: 2px solid var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.quadruped3d-viewing[hidden],
+.quadruped3d-turbo[hidden] {
+  display: none;
+}
+.quadruped3d-viewing span {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.quadruped3d-viewing button {
+  padding: 3px 10px;
+  font-size: 0.85rem;
+}
+.quadruped3d-turbo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: min(86%, 360px);
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.9rem;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border);
+}
+.quadruped3d-hud .quadruped3d-hud-ghost {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+/* Vitesse d'apprentissage */
+.quadruped3d-speed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.quadruped3d-speed-label {
+  font-weight: 600;
+  margin-right: 4px;
+}
+.quadruped3d-speed-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.quadruped3d-speed-opt:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+.quadruped3d-speed-opt input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+#quadruped3d-speed-help {
+  margin-top: 4px;
+}
+
+/* Moments clés */
+.quadruped3d-moments {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.quadruped3d-moments-empty {
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 6px 2px;
+}
+.quadruped3d-moment {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 9px;
+  font-size: 0.88rem;
+  line-height: 1.3;
+  border-left: 4px solid var(--border);
+  white-space: normal;
+}
+.quadruped3d-moment.active {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-weight: 600;
+}
+.quadruped3d-moment-milestone,
+.quadruped3d-moment-nofall {
+  border-left-color: var(--goal);
+}
+.quadruped3d-moment-record {
+  border-left-color: var(--series-2);
+}
+.quadruped3d-moment-before,
+.quadruped3d-moment-after,
+.quadruped3d-moment-adapted {
+  border-left-color: var(--trap);
+}
+.quadruped3d-moment-tag {
+  flex: none;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 5.5em;
+}
+.quadruped3d-scrub input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.quadruped3d-compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.quadruped3d-compare label {
+  flex: 1 1 100%;
+  font-size: 0.9rem;
+}
+.quadruped3d-compare select {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  /* Bandeau « Vous regardez… » compact : il ne doit pas cacher le robot sur un petit écran. */
+  .quadruped3d-viewing {
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    flex-wrap: nowrap;
+    padding: 4px 6px 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .quadruped3d-viewing span {
+    flex: 1 1 auto;
+  }
+  .quadruped3d-viewing button {
+    flex: none;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+  }
 }

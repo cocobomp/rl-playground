@@ -1,15 +1,14 @@
 // Worker d'entraînement : chaque worker tient une copie identique de la stratégie d'évolution
-// (même graine ⇒ mêmes variantes), évalue sa part de la population, puis tous appliquent
-// la même mise à jour avec les scores complets. Résultat identique quel que soit le nombre de workers.
+// (même graine ⇒ mêmes variantes), évalue sa part de la population (par indice), puis tous appliquent
+// la même mise à jour avec les scores complets. Résultat identique quel que soit le nombre de workers actifs.
 import type { EvolutionStrategy } from '../../shared/nn';
-import { makeES, evaluate } from './agent';
+import { makeES, evaluate, evaluateShare } from './agent';
 import type { Objectives, WorldConfig } from './env';
 import type { FromWorker, Scored, ToWorker } from './protocol';
 
 let es: EvolutionStrategy | null = null;
 let runId = -1;
 let index = 0;
-let count = 1;
 let config: WorldConfig;
 let objectives: Objectives;
 
@@ -20,7 +19,6 @@ self.onmessage = (ev: MessageEvent<ToWorker>) => {
   if (m.type === 'init') {
     runId = m.runId;
     index = m.index;
-    count = m.count;
     config = m.config;
     objectives = m.objectives;
     es = makeES(m.init, m.es, m.seed);
@@ -39,12 +37,14 @@ self.onmessage = (ev: MessageEvent<ToWorker>) => {
     let theta: FromWorker['theta'];
     if (index === 0) theta = { r: evaluate(es.theta, config, objectives), params: Array.from(es.theta) };
     const cands = es.ask();
-    const scored: Scored[] = [];
+    const scored: Scored[] = evaluateShare(cands, index, m.active, config, objectives);
     let bestI = -1;
-    for (let i = index; i < cands.length; i += count) {
-      const r = evaluate(cands[i], config, objectives);
-      scored.push({ i, r });
-      if (bestI < 0 || r.fitness > scored.find((s) => s.i === bestI)!.r.fitness) bestI = i;
+    let bestF = -Infinity;
+    for (const s of scored) {
+      if (bestI < 0 || s.r.fitness > bestF) {
+        bestI = s.i;
+        bestF = s.r.fitness;
+      }
     }
     post({
       type: 'scores',

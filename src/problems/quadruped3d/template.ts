@@ -1,25 +1,35 @@
 // Gabarit HTML du robot 3D. Tous les identifiants sont préfixés par « quadruped3d- ».
+// Les chiffres marqués {{…}} sont remplacés au montage (voir index.ts) par ceux des cerveaux livrés.
 export const TEMPLATE = `
 <section class="quadruped3d-start" aria-label="Commencez ici">
   <p class="quadruped3d-start-title">Commencez ici</p>
   <ol>
-    <li>Le robot marche déjà : son « cerveau » (un petit réseau de neurones) a appris à l’avance. Environ 9&nbsp;m en 8&nbsp;s.</li>
+    <li>Le robot marche déjà : chaque patte a son propre <strong>métronome</strong>, décalé comme un trot, et un petit
+      réseau de neurones a appris à l’avance à les régler. Environ {{healthy}} en 8&nbsp;s.</li>
+    <li>Ouvrez les <strong>Moments clés</strong> sous le robot : cliquez sur « Génération 0 » puis sur les suivantes
+      pour revoir comment il a appris à marcher.</li>
     <li>Cliquez sur <button type="button" id="quadruped3d-start-injury" class="primary quadruped3d-start-btn">Casser une patte</button>
-      puis sur <strong>Réapprendre</strong>. Il boite (environ 1&nbsp;m), puis la distance remonte vers 5 à 7&nbsp;m en 20 à 50
-      <em>générations</em> (à chaque génération, 24 variantes du cerveau sont essayées), soit moins d’une minute.</li>
-    <li>Quand la <strong>courbe</strong> ne monte plus, l’adaptation est faite.</li>
+      puis sur <strong>Réapprendre</strong>. Il boite ({{broken0}}), puis la distance remonte en quelques dizaines de
+      <em>générations</em> (à chaque génération, 24 variantes du cerveau sont essayées).</li>
   </ol>
   <p class="quadruped3d-start-key"><strong>L’idée clé :</strong> même recette que le <strong>Robot marcheur 2D</strong>
-    (essayer des variantes au hasard, garder ce qui avance), mais en 3D. <strong>Sa limite :</strong> chaque essai coûte
-    beaucoup de calcul, donc apprendre de zéro prend des minutes, d’où le cerveau entraîné à l’avance.</p>
+    (essayer des variantes au hasard, garder ce qui avance), mais en 3D, avec un rythme de marche « inné » que
+    l’apprentissage n’a plus qu’à régler. <strong>Sa limite :</strong> chaque essai coûte beaucoup de calcul.</p>
 </section>
 <div class="layout quadruped3d-root">
   <div class="col">
     <section class="panel" aria-label="Robot en 3D">
-      <p class="quadruped3d-badge"><strong>Expérimental.</strong> Chaque essai simule 8 secondes de physique 3D complète :
-        une à deux générations par seconde seulement, selon votre appareil.</p>
+      <p class="quadruped3d-badge"><strong>Expérimental.</strong> Chaque essai simule 8 secondes de physique 3D complète.
+        Les essais sont répartis sur <span id="quadruped3d-cores">plusieurs</span> fils de calcul de votre appareil ;
+        selon sa puissance, comptez de une à quelques générations par seconde.</p>
       <div class="quadruped3d-stage" id="quadruped3d-stage">
         <div class="quadruped3d-hud" id="quadruped3d-hud" aria-live="off"></div>
+        <div class="quadruped3d-viewing" id="quadruped3d-viewing" hidden>
+          <span id="quadruped3d-viewing-text"></span>
+          <button type="button" id="quadruped3d-live" class="primary">Revenir au direct</button>
+        </div>
+        <p class="quadruped3d-turbo" id="quadruped3d-turbo" hidden>Mode turbo : l’animation est en pause pour laisser tout le
+          calcul à l’apprentissage. Les chiffres et la courbe continuent d’avancer.</p>
         <p class="quadruped3d-loading" id="quadruped3d-loading">Chargement du moteur physique…</p>
       </div>
       <p class="help">Faites glisser pour tourner autour du robot, molette ou pincement pour zoomer. La bande verte marque l’avant.</p>
@@ -30,14 +40,37 @@ export const TEMPLATE = `
         <button id="quadruped3d-btn-pretrained">Cerveau pré-entraîné</button>
         <button id="quadruped3d-btn-scratch">Repartir de zéro</button>
       </div>
+      <div class="quadruped3d-speed" role="radiogroup" aria-label="Vitesse d’apprentissage" id="quadruped3d-speed">
+        <span class="quadruped3d-speed-label">Vitesse d’apprentissage</span>
+      </div>
+      <p class="help" id="quadruped3d-speed-help"></p>
 
       <dl class="stats">
         <div><dt>Génération</dt><dd id="quadruped3d-st-gen">0</dd></div>
         <div><dt>Distance (8 s)</dt><dd id="quadruped3d-st-dist">–</dd></div>
         <div title="Meilleure distance en 8 s depuis le dernier changement de cerveau ou de monde"><dt>Record</dt><dd id="quadruped3d-st-best">–</dd></div>
         <div><dt>Énergie (8 s)</dt><dd id="quadruped3d-st-energy">–</dd></div>
+        <div title="Générations terminées par seconde (moyenne récente)"><dt>Vitesse</dt><dd id="quadruped3d-st-speed">–</dd></div>
       </dl>
       <p id="quadruped3d-status" class="status" role="status"></p>
+    </section>
+
+    <section class="panel" aria-label="Moments clés">
+      <h2>Moments clés : revoir l’évolution</h2>
+      <p class="help">Pendant l’apprentissage, on met de côté le cerveau de certaines générations : la première, chaque cap de
+        distance franchi, le premier essai sans chute, les records nets, et les générations juste avant et juste après chaque
+        changement. Cliquez sur un moment pour le revoir : l’apprentissage continue pendant ce temps.</p>
+      <ol class="quadruped3d-moments" id="quadruped3d-moments"></ol>
+      <div class="quadruped3d-scrub">
+        <div class="slider-head"><label for="quadruped3d-scrub">Parcourir les générations gardées</label>
+          <output for="quadruped3d-scrub" id="quadruped3d-scrub-out">–</output></div>
+        <input type="range" id="quadruped3d-scrub" min="0" max="0" step="1" value="0" />
+      </div>
+      <div class="quadruped3d-compare">
+        <label for="quadruped3d-ghost">Comparer avec un fantôme (robot gris, couloir voisin)</label>
+        <select id="quadruped3d-ghost"></select>
+        <button type="button" id="quadruped3d-compare-quick">Comparer le début et la fin</button>
+      </div>
     </section>
 
     <section class="panel" aria-label="Progrès de l’apprentissage">
@@ -52,12 +85,15 @@ export const TEMPLATE = `
 
     <section class="panel" aria-label="Perceptions et commandes">
       <h2>Ce que le robot perçoit et commande</h2>
-      <canvas id="quadruped3d-brain" class="quadruped3d-brain" aria-label="Entrées et sorties du réseau de neurones, en direct"></canvas>
+      <canvas id="quadruped3d-brain" class="quadruped3d-brain" aria-label="Métronomes des pattes, entrées et sorties du cerveau, en direct"></canvas>
       <p class="help">
-        En haut, les 20 nombres que reçoit le réseau à chaque instant : son horloge interne (sinus et cosinus du rythme),
-        la direction de la gravité vue depuis le tronc (pour savoir s’il penche), la vitesse et la rotation du tronc, sa hauteur,
-        et l’angle de ses 8 articulations. En bas, les 8 consignes d’angle qu’il envoie aux moteurs des hanches (h) et des genoux (g)
-        de chaque patte (Av/Ar = avant/arrière, G/D = gauche/droite). Un trait rouge : articulation absente ou bloquée.
+        En haut, les <strong>4 métronomes</strong>, un par patte : l’aiguille tourne au tempo de la marche, décalée d’une
+        patte à l’autre (les pattes en diagonale battent ensemble, comme au trot) ; sa longueur montre l’amplitude du
+        mouvement de la hanche. Au milieu, les 20 nombres que reçoit le réseau correcteur : le rythme, la direction de la
+        gravité vue depuis le tronc (pour savoir s’il penche), la vitesse et la rotation du tronc, sa hauteur, l’angle des
+        8 articulations. En bas, pour chaque hanche (h) et genou (g) : la part du <strong>rythme</strong> (barre large),
+        la <strong>correction</strong> du réseau (barre fine, au plus 30&nbsp;%) et la consigne finale (trait).
+        Av/Ar = avant/arrière, G/D = gauche/droite. Un trait rouge : articulation absente ou bloquée.
       </p>
     </section>
   </div>
@@ -97,35 +133,47 @@ export const TEMPLATE = `
         <strong>consigne d’angle</strong> et pousse comme un ressort amorti pour l’atteindre, avec un couple limité.
       </p>
       <p>
-        Le « cerveau » est un petit réseau de neurones (20 entrées → 24 neurones → 8 sorties, environ 700 poids).
-        Parmi ses entrées, une <strong>horloge interne</strong> (sinus et cosinus d’un rythme à 1,6 Hz) joue le rôle d’un
-        générateur de rythme, comme les circuits de la moelle épinière qui cadencent la marche des animaux :
-        le réseau n’a plus qu’à apprendre quelle posture prendre à chaque instant du cycle, corrigée par ce qu’il ressent.
+        <strong>Chaque patte a son propre métronome, décalé comme un trot</strong> : avant gauche et arrière droite battent
+        ensemble, l’autre diagonale à contretemps. À chaque battement, la hanche va et vient et le genou plie un peu plus tard,
+        pour lever le pied quand la patte revient vers l’avant. Les animaux ont un tel <em>générateur de rythme</em> dans la
+        moelle épinière : ils n’ont pas à réinventer la marche à chaque pas.
+      </p>
+      <p>
+        Le « cerveau » apprend à <strong>régler</strong> ces métronomes : le tempo, l’amplitude et la position de repos de
+        chaque hanche et de chaque genou, le retard du genou, le décalage de chaque patte (environ 30 réglages, communs aux
+        4 pattes ou propres à chacune). Un petit <strong>réseau de neurones</strong> (20 entrées → 8 neurones → 8 sorties)
+        ajoute des corrections limitées à 30&nbsp;% du débattement, selon ce que le robot ressent : il penche, il tourne,
+        il s’affaisse… C’est lui qui garde l’équilibre et la direction.
       </p>
       <p>Il n’y a pas de professeur : seule une note (la <strong>récompense</strong>) est donnée à la fin de chaque essai de 8 secondes.
         Apprendre par essais et erreurs à partir d’une telle note, c’est le principe du <em>reinforcement learning</em>
         (apprentissage par renforcement).</p>
       <p class="formula">note = distance − a·énergie − b·inclinaison − chute</p>
       <ul>
-        <li><strong>Stratégie d’évolution</strong> : à chaque génération, on crée des variantes du cerveau en ajoutant un petit
-          bruit aléatoire à tous ses poids (par paires opposées +bruit / −bruit), on les essaie toutes, puis on déplace le cerveau
-          vers les variantes les mieux classées. Aucune dérivée de la physique n’est nécessaire.</li>
+        <li><strong>Stratégie d’évolution</strong> : à chaque génération, on crée 24 variantes du cerveau en ajoutant un petit
+          bruit aléatoire à tous ses réglages (par paires opposées +bruit / −bruit), on les essaie toutes, puis on déplace le
+          cerveau vers les variantes les mieux classées. Aucune dérivée de la physique n’est nécessaire.</li>
+        <li><strong>Pourquoi des métronomes ?</strong> Une version précédente laissait un réseau libre inventer tous les gestes à
+          partir d’une seule horloge. Elle avait trouvé une démarche où les pattes avant tiraient le robot pendant que
+          l’arrière droite traînait presque immobile : une solution « qui marche », mais un piège dont l’évolution ne sortait
+          plus. Avec un métronome par patte, toutes les pattes participent dès le départ, et il y a beaucoup moins de
+          réglages à trouver : l’apprentissage va bien plus vite.</li>
+        <li><strong>En parallèle</strong> : les 25 essais d’une génération sont répartis entre plusieurs fils de calcul
+          (workers) de votre appareil. Le résultat ne dépend pas de leur nombre : chaque variante est notée à sa place.</li>
         <li><strong>Énergie</strong> : estimée en additionnant, à chaque instant, |couple × vitesse de rotation| de chaque moteur.
           C’est le travail mécanique des moteurs, pas leur consommation électrique réelle.</li>
         <li><strong>Inclinaison</strong> : angle moyen entre le dos du robot et l’horizontale. Une chute (tronc trop penché ou trop bas)
           arrête l’essai.</li>
-        <li><strong>Pourquoi un cerveau sain échoue après une blessure ?</strong> Il a appris des gestes adaptés à <em>son</em> corps.
-          Avec une patte en moins ou un genou raide, ces mêmes gestes déséquilibrent le robot. L’évolution repart du cerveau
-          existant : elle ne réinvente pas tout, elle ajuste ce qui sait déjà presque marcher, ce qui va bien plus vite que de zéro.</li>
-        <li><strong>Même principe qu’en 2D, et ses limites.</strong> L’algorithme est le même que pour le Robot marcheur 2D ; seuls
-          le corps et le monde changent. Mais une génération demande ici 25 essais de 480 pas de physique 3D (8 s à 60 images par
-          seconde), et chaque pas de physique 3D coûte bien plus cher qu’en 2D : partir de zéro demande une centaine de générations ou plus avant une
-          vraie démarche, et deux apprentissages identiques en apparence n’aboutissent pas à la même démarche. Les chercheurs
-          entraînent ce genre de robot sur des milliers d’essais en parallèle ; ici tout tourne dans votre navigateur.</li>
+        <li><strong>Pourquoi un cerveau sain échoue après une blessure ?</strong> Ses réglages conviennent à <em>son</em> corps.
+          Avec une patte en moins ou un genou raide, les mêmes gestes déséquilibrent le robot. L’évolution repart du cerveau
+          existant et ajuste ce qui sait déjà presque marcher : l’amplitude ou le décalage d’une patte, la posture, le tempo.</li>
+        <li><strong>Ses limites.</strong> Chaque essai demande 480 pas de physique 3D (8 s à 60 images par seconde), bien plus
+          coûteux qu’en 2D. Deux apprentissages de zéro n’aboutissent pas toujours à la même démarche, et il arrive qu’un essai
+          reste coincé un moment (le robot se jette en avant et tombe, ou piétine sans avancer). Les chercheurs entraînent ce
+          genre de robot sur des milliers d’essais en parallèle ; ici tout tourne dans votre navigateur.</li>
         <li><strong>Pré-entraînement</strong> : le cerveau chargé au départ a été entraîné hors ligne avec exactement la même
-          simulation, puis enregistré (environ 25 minutes de calcul). Sa généalogie est instructive : appris de zéro sur le robot intact,
-          puis adapté à la patte cassée, puis réadapté au robot intact ; ce détour lui a fait découvrir une démarche plus rapide que celle
-          trouvée directement. La simulation est déterministe : un même cerveau refait exactement le même essai.</li>
+          simulation ({{healthyGen}} générations), et quelques générations intermédiaires ont été gardées : ce sont les moments
+          « hors ligne » de la frise. La simulation est déterministe : un même cerveau refait exactement le même essai.</li>
       </ul>
     </section>
   </div>

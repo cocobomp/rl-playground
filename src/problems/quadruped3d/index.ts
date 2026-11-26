@@ -5,20 +5,28 @@ import {
   INTERVENTIONS,
   SCENARIOS,
   SIGMA_LEVELS,
+  SPEED_MODES,
   Scenario,
   Settings,
+  SpeedMode,
   TRAITS,
   Trait,
   defaultSettings,
+  describeWorld,
+  fillFigures,
   rewardOf,
+  workersFor,
 } from './config';
-import { DEFAULT_WORLD, DT, EPISODE_SECONDS, EPISODE_STEPS, NUM_JOINTS, OBS_SIZE, QuadrupedEnv, initPhysics } from './env';
-import { evaluate, makePolicy, randomBrain } from './agent';
-import type { Policy } from './env';
-import type { FromWorker, ToWorker } from './protocol';
-import { PRETRAINED_BROKEN, PRETRAINED_HEALTHY } from './pretrained';
+import { DEFAULT_WORLD, DT, EPISODE_SECONDS, EPISODE_STEPS, NUM_JOINTS, OBS_SIZE, QuadrupedEnv, WorldParams, initPhysics, newEnvFor } from './env';
+import { BrainPolicy, evaluate, gaitOf, makePolicy, randomBrain } from './agent';
+import { PRETRAINED_BROKEN, PRETRAINED_HEALTHY, PRETRAINED_STORY, storyLabel } from './pretrained';
 import { drawBrainPanel } from './draw';
 import { RobotView, webglAvailable } from './view3d';
+import { EvalPool, defaultWorkerCount } from './pool';
+import { TrainingLoop } from './trainloop';
+import { Moment, MomentStore } from './moments';
+import { Timeline } from './timeline';
+import { WORLD_PRESETS } from './worlds';
 import { drawChart } from '../../shared/chart';
 import { createSlider, onResize, onThemeChange, rafLoop, readTheme } from '../../shared/ui';
 
@@ -29,9 +37,10 @@ const FALL_PAUSE = 1.2;
 
 const fr = (v: number, d = 2) => v.toFixed(d).replace('.', ',').replace('-', '−');
 const fmtM = (v: number) => `${fr(v)} m`;
+const fmt1 = (v: number) => `${fr(v, 1)} m`;
 
 export function mount(root: HTMLElement): () => void {
-  root.innerHTML = TEMPLATE;
+  root.innerHTML = fillFigures(TEMPLATE.replace('{{healthyGen}}', String(PRETRAINED_HEALTHY.generation)), '&nbsp;');
   const disposers: Array<() => void> = [];
   let disposed = false;
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => root.querySelector(`#quadruped3d-${id}`) as T;
@@ -40,159 +49,189 @@ export function mount(root: HTMLElement): () => void {
   let theme = readTheme();
 
   // ---------------------------------------------------------------------------
-  // Cerveau affiché, historique
+  // Cerveau en direct, historique, moments clés
   // ---------------------------------------------------------------------------
   let brain: Float64Array = Float64Array.from(PRETRAINED_HEALTHY.params);
   let brainLabel = 'pré-entraîné (robot intact)';
-  /** Cerveau reçu du worker, affiché au prochain recommencement du rejeu. */
+  /** Cerveau reçu de l'entraînement, affiché au prochain recommencement du rejeu. */
   let pendingBrain: { params: Float64Array; label: string } | null = null;
   const distHistory: number[] = [];
   const fitHistory: number[] = [];
   let generation = 0;
   let record = -Infinity;
   let chartDirty = true;
-  /** Distance du cerveau au début de la phase d'apprentissage actuelle (même cerveau de départ, même monde). */
+  let lastGen: { generation: number; distance: number; fell: boolean; params: Float64Array; world: WorldParams } | null = null;
+  const moments = new MomentStore();
+  /** Ce que décrit la phase en cours (pour les étiquettes « après adaptation »). */
+  let phaseWhat = '';
+  let adaptedMarked = false;
   let baseline: number | null = null;
-  /** Indice dans distHistory où commence cette phase. */
   let baselineIndex = 0;
+  let plateauSeen = false;
+  const PLATEAU_WINDOW = 15;
   const markBaseline = () => {
     baseline = lastEval ? lastEval.distance : null;
     baselineIndex = distHistory.length;
     plateauSeen = false;
+    adaptedMarked = false;
   };
-  /** Une fois le plateau détecté, le message reste affiché (évite le clignotement dû au bruit). */
-  let plateauSeen = false;
-  /** Nombre de générations sans progrès net pour déclarer que la courbe plafonne. */
-  const PLATEAU_WINDOW = 15;
 
   // ---------------------------------------------------------------------------
-  // Worker d'entraînement
+  // Entraînement : stratégie d'évolution ici, essais dans plusieurs workers
   // ---------------------------------------------------------------------------
-  let worker: Worker | null = null;
+  const hwc = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined;
+  const maxWorkers = defaultWorkerCount(hwc);
+  let pool: EvalPool | null = null;
   try {
-    worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+    pool = new EvalPool(() => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }), workersFor(settings.speed, maxWorkers));
+    pool.onError = (msg) => {
+      loop?.stop();
+      training = false;
+      updateButtons();
+      setStatus(`Erreur dans l’entraînement : ${msg}`);
+    };
   } catch {
-    worker = null;
+    pool = null;
   }
-  disposers.push(() => worker?.terminate());
-  const send = (m: ToWorker) => worker?.postMessage(m);
-  let runId = 0;
+  const loop = pool ? new TrainingLoop(pool) : null;
+  disposers.push(() => {
+    loop?.stop();
+    pool?.dispose();
+  });
   let seed = 1;
   let training = false;
-  /** Le worker doit repartir du cerveau affiché (nouveau cerveau chargé). */
   let needReset = true;
   let genOffset = 0;
 
-  if (worker) {
-    worker.onmessage = (ev: MessageEvent<FromWorker>) => {
-      const m = ev.data;
-      if (m.type === 'error') {
-        training = false;
-        updateButtons();
-        setStatus(`Erreur dans l’entraînement : ${m.message}`);
-        return;
-      }
-      if (m.runId !== runId) return;
-      if (m.type === 'gen') {
-        const r = m.report;
-        generation = genOffset + r.generation;
-        distHistory.push(r.distance);
-        fitHistory.push(r.fitness);
-        chartDirty = true;
-        record = Math.max(record, r.distance);
-        lastEval = { distance: r.distance, energy: r.energy, fell: r.fell };
-        pendingBrain = { params: Float64Array.from(m.brain), label: `génération ${generation}` };
-        updateStats();
-        if (training) {
-          const from = baseline !== null ? ` (au départ : ${fmtM(baseline)})` : '';
-          const fell = r.fell ? ' mais il tombe encore avant la fin' : ', sans chute';
-          let msg = `Génération ${generation} : le cerveau actuel parcourt ${fmtM(r.distance)} en 8 s${from}${fell}.`;
-          if (!plateauSeen && isPlateau()) plateauSeen = true;
-          const plateau = plateauSeen;
-          if (plateau)
-            msg += ' La courbe ne monte presque plus depuis une quinzaine de générations : l’essentiel est appris, vous pouvez cliquer sur « Pause » (de petits progrès restent possibles).';
-          else if (isStuck())
-            msg += ' Après tant de générations, toujours pas de vraie démarche : ce cas est difficile pour cette méthode, les progrès sont très lents.';
-          setStatus(msg, plateau);
+  if (loop) {
+    loop.onGeneration = (r, params, world) => {
+      if (disposed) return;
+      generation = genOffset + r.generation;
+      distHistory.push(r.distance);
+      fitHistory.push(r.fitness);
+      chartDirty = true;
+      record = Math.max(record, r.distance);
+      lastEval = { distance: r.distance, energy: r.energy, fell: r.fell };
+      lastGen = { generation, distance: r.distance, fell: r.fell, params, world };
+      pendingBrain = { params, label: `génération ${generation}` };
+      const added = moments.observe({ generation, distance: r.distance, fell: r.fell }, params, world);
+      if (!plateauSeen && isPlateau()) {
+        plateauSeen = true;
+        if (phaseWhat && !adaptedMarked) {
+          adaptedMarked = true;
+          moments.markAdapted({ generation, distance: r.distance, fell: r.fell }, params, world, phaseWhat);
+          added.push(moments.moments[moments.moments.length - 1]);
         }
       }
-    };
-    worker.onerror = () => {
-      training = false;
-      worker = null;
-      updateButtons();
-      setStatus('Le Web Worker d’entraînement n’a pas pu démarrer : l’apprentissage est indisponible dans ce navigateur.');
+      if (added.length) timeline.setMoments(moments.moments);
+      updateStats();
+      if (training) {
+        const from = baseline !== null ? ` (au départ : ${fmtM(baseline)})` : '';
+        const fell = r.fell ? ' mais il tombe encore avant la fin' : ', sans chute';
+        let msg = `Génération ${generation} : le cerveau actuel parcourt ${fmtM(r.distance)} en 8 s${from}${fell}.`;
+        if (plateauSeen)
+          msg += ' La courbe ne monte presque plus depuis une quinzaine de générations : l’essentiel est appris, vous pouvez cliquer sur « Pause » (de petits progrès restent possibles).';
+        else if (isStuck())
+          msg += ' Toujours pas de vraie démarche après tant de générations : cet apprentissage est coincé (cela arrive), essayez « Repartir de zéro » pour retenter avec un autre hasard.';
+        if (added.length) msg += ` Nouveau moment clé : « ${added[added.length - 1].label} ».`;
+        setStatus(msg, plateauSeen);
+      }
     };
   }
 
-  /** Distance au-delà de laquelle on parle d'une vraie démarche (le cerveau pré-entraîné fait environ 9 m). */
   const GAIT_DISTANCE = 4;
+  /** Le cerveau en cours d'apprentissage est parti d'un tirage au hasard (pas d'un cerveau pré-entraîné). */
+  let fromScratch = false;
   const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
-  /**
-   * Vrai si le robot a une vraie démarche (moyenne récente ≥ GAIT_DISTANCE) et que la moyenne des
-   * 15 dernières distances ne dépasse plus nettement celle des 15 précédentes.
-   */
   function isPlateau(): boolean {
     const h = distHistory.slice(baselineIndex);
     if (h.length < 2 * PLATEAU_WINDOW + 10) return false;
     const recent = mean(h.slice(-PLATEAU_WINDOW));
     const before = mean(h.slice(-2 * PLATEAU_WINDOW, -PLATEAU_WINDOW));
-    return recent >= GAIT_DISTANCE && recent - before < 0.15;
+    return recent >= GAIT_DISTANCE && recent - before < 0.15 * Math.max(1, recent / 5);
   }
-  /** Vrai si, après beaucoup de générations, le robot n'a toujours pas de démarche. */
+  /** Départ de zéro coincé : après 80 générations, toujours pas de vraie démarche (mesuré : ces départs-là restent sous 4 m). */
   function isStuck(): boolean {
     const h = distHistory.slice(baselineIndex);
-    return h.length >= 150 && mean(h.slice(-PLATEAU_WINDOW)) < 2;
+    return fromScratch && h.length >= 80 && mean(h.slice(-PLATEAU_WINDOW)) < GAIT_DISTANCE;
   }
 
-  function resetWorker(): void {
-    runId++;
+  /** Graine imposée par un scénario pour le prochain apprentissage (sinon : un nouveau hasard). */
+  let fixedTrainerSeed: number | null = null;
+  function resetTrainer(): void {
+    if (!loop) return;
     genOffset = generation;
-    send({
-      type: 'reset',
-      runId,
-      brain: Array.from(brain),
-      world: { ...settings.world },
-      reward: rewardOf(settings),
-      hyper: { ...settings.hyper },
-      seed: seed++,
-    });
+    loop.reset(brain, settings.world, rewardOf(settings), settings.hyper, fixedTrainerSeed ?? seed++);
+    fixedTrainerSeed = null;
     needReset = false;
   }
 
   function setTraining(on: boolean): void {
-    if (!worker) {
+    if (!loop) {
       setStatus('L’apprentissage nécessite les Web Workers, indisponibles ici.');
       return;
     }
-    if (on && needReset) resetWorker();
+    if (on && needReset) resetTrainer();
     training = on;
-    send({ type: 'run', on });
+    if (on) loop.start();
+    else loop.stop();
     updateButtons();
     if (on) {
       setStatus(
-        `Apprentissage en cours : chaque génération essaie ${settings.hyper.popSize} variantes du cerveau pendant 8 s simulées, puis le cerveau avance vers les meilleures. ` +
+        `Apprentissage en cours : chaque génération essaie ${settings.hyper.popSize} variantes du cerveau pendant 8 s simulées, réparties sur ${pool!.size} fil${pool!.size > 1 ? 's' : ''} de calcul, puis le cerveau avance vers les meilleures. ` +
           'Le robot à l’écran prend le nouveau cerveau à chaque nouvel essai.',
       );
-      restartReplay();
+      if (!viewing) restartReplay();
     } else setStatus(`En pause à la génération ${generation}. « Reprendre » continue à partir du cerveau actuel.`);
+    updateTurbo();
   }
 
-  /** Remplace le cerveau (pré-entraîné, aléatoire, scénario) : l'historique repart de zéro. */
-  function loadBrain(params: ArrayLike<number>, label: string): void {
+  /** Remplace le cerveau (pré-entraîné, aléatoire, scénario) : l'historique et les moments repartent de zéro. */
+  function loadBrain(params: ArrayLike<number>, label: string, story: 'healthy' | 'broken' | 'none'): void {
     if (training) {
       training = false;
-      send({ type: 'run', on: false });
+      loop?.stop();
     }
     brain = Float64Array.from(params);
     brainLabel = label;
+    fromScratch = story === 'none';
     pendingBrain = null;
     needReset = true;
+    fixedTrainerSeed = null;
     distHistory.length = 0;
     fitHistory.length = 0;
     generation = 0;
+    genOffset = 0;
     record = -Infinity;
     chartDirty = true;
+    lastGen = null;
+    phaseWhat = '';
+    moments.clear();
+    if (story === 'healthy') {
+      moments.addOffline(
+        PRETRAINED_STORY.map((m) => ({
+          generation: m.generation,
+          kind: 'offline' as const,
+          label: storyLabel(m),
+          distance: m.distance,
+          fell: m.fell,
+          params: Float64Array.from(m.params),
+          world: { ...DEFAULT_WORLD },
+        })),
+      );
+    } else if (story === 'broken') {
+      const broken = { ...DEFAULT_WORLD, ...WORLD_PRESETS.broken };
+      const h = evaluate(PRETRAINED_HEALTHY.params, broken, rewardOf(settings));
+      moments.addOffline([
+        { generation: PRETRAINED_HEALTHY.generation, kind: 'offline', label: `Avant la blessure : le cerveau du robot intact, ${fmt1(PRETRAINED_HEALTHY.distance)}`, distance: PRETRAINED_HEALTHY.distance, fell: false, params: Float64Array.from(PRETRAINED_HEALTHY.params), world: { ...DEFAULT_WORLD } },
+        { generation: 0, kind: 'offline', label: `Juste après la blessure : même cerveau, ${fmt1(h.distance)}${h.fell ? ', il tombe' : ''}`, distance: h.distance, fell: h.fell, params: Float64Array.from(PRETRAINED_HEALTHY.params), world: broken },
+        { generation: PRETRAINED_BROKEN.generation, kind: 'offline', label: `Après adaptation (${PRETRAINED_BROKEN.generation} générations) : ${fmt1(PRETRAINED_BROKEN.distance)} sur 3 pattes`, distance: PRETRAINED_BROKEN.distance, fell: false, params: Float64Array.from(PRETRAINED_BROKEN.params), world: broken },
+      ]);
+    }
+    moments.newPhase();
+    setViewing(null);
+    setGhost(null);
+    timeline.setMoments(moments.moments);
     evaluateCurrent();
     markBaseline();
     updateButtons();
@@ -213,7 +252,7 @@ export function mount(root: HTMLElement): () => void {
   }
 
   // ---------------------------------------------------------------------------
-  // Rejeu 3D
+  // Rejeu 3D (robot principal + fantôme éventuel)
   // ---------------------------------------------------------------------------
   const stage = $('stage');
   const hud = $('hud');
@@ -233,63 +272,95 @@ export function mount(root: HTMLElement): () => void {
   }
   disposers.push(() => view?.dispose());
 
-  let env: QuadrupedEnv | null = null;
-  let policy: Policy | null = null;
+  /** Moment revu (null : le direct). */
+  let viewing: Moment | null = null;
+  /** Fantôme : un moment, le cerveau en direct, ou rien. */
+  let ghostSel: Moment | 'live' | null = null;
+
+  interface Runner {
+    env: QuadrupedEnv;
+    policy: BrainPolicy;
+    world: WorldParams;
+    fallTimer: number;
+    dist8: number | null;
+  }
+  let main: Runner | null = null;
+  let ghost: Runner | null = null;
   const obs = new Float64Array(OBS_SIZE);
-  const actions = new Float64Array(NUM_JOINTS);
+  const gobs = new Float64Array(OBS_SIZE);
   let actuated: boolean[] = new Array(NUM_JOINTS).fill(true);
-  let fallTimer = 0;
   let acc = 0;
-  let replayDist8: number | null = null;
+  let mainGait = gaitOf(brain);
+
+  const makeRunner = (params: ArrayLike<number>, world: WorldParams): Runner => {
+    const policy = makePolicy(params);
+    return { env: newEnvFor(policy, world), policy, world: { ...world }, fallTimer: 0, dist8: null };
+  };
 
   function restartReplay(): void {
     if (!physicsReady || disposed) return;
-    if (pendingBrain) {
+    if (pendingBrain && !viewing) {
       brain = pendingBrain.params;
       brainLabel = pendingBrain.label;
       pendingBrain = null;
     }
-    env?.free();
-    env = new QuadrupedEnv(settings.world);
-    policy = makePolicy(brain);
-    actuated = Array.from({ length: NUM_JOINTS }, (_, j) => env!.isActuated(j));
-    fallTimer = 0;
+    main?.env.free();
+    const params = viewing ? viewing.params : brain;
+    const world = viewing ? viewing.world : settings.world;
+    main = makeRunner(params, world);
+    mainGait = gaitOf(params);
+    actuated = Array.from({ length: NUM_JOINTS }, (_, j) => main!.env.isActuated(j));
+    ghost?.env.free();
+    ghost = null;
+    if (ghostSel) {
+      const gp = ghostSel === 'live' ? (pendingBrain?.params ?? brain) : ghostSel.params;
+      const gw = ghostSel === 'live' ? settings.world : ghostSel.world;
+      ghost = makeRunner(gp, gw);
+    }
     acc = 0;
-    replayDist8 = null;
-    actions.fill(0);
-    view?.setWorld(settings.world);
+    view?.setWorld(world);
+    view?.setGhost(ghost ? ghost.world : null);
     view?.snapCamera(0);
+    if (view && main) view.update(main.env.poses());
+    if (view && ghost) view.updateGhost(ghost.env.poses());
   }
   disposers.push(() => {
-    env?.free();
-    env = null;
+    main?.env.free();
+    ghost?.env.free();
+    main = ghost = null;
   });
 
-  function stepReplay(): void {
-    if (!env || !policy) return;
-    if (env.fallen) {
-      fallTimer += DT;
-      if (fallTimer >= FALL_PAUSE) restartReplay();
+  function stepRunner(r: Runner, o: Float64Array): void {
+    if (r.env.fallen) {
+      r.fallTimer += DT;
       return;
     }
-    env.observe(obs);
-    const a = policy(obs);
-    for (let j = 0; j < NUM_JOINTS; j++) actions[j] = env.isActuated(j) ? a[j] : 0;
-    env.step(a);
-    if (env.steps === EPISODE_STEPS || (env.fallen && replayDist8 === null)) replayDist8 = env.distance;
-    const limit = training ? EPISODE_SECONDS : LONG_REPLAY_SECONDS;
-    if (!env.fallen && env.time >= limit - 1e-9) restartReplay();
+    r.env.observe(o);
+    r.env.step(r.policy(o));
+    if (r.env.steps === EPISODE_STEPS || (r.env.fallen && r.dist8 === null)) r.dist8 = r.env.distance;
+  }
+
+  function stepReplay(): void {
+    if (!main) return;
+    stepRunner(main, obs);
+    if (ghost) stepRunner(ghost, gobs);
+    const limit = training && !viewing ? EPISODE_SECONDS : LONG_REPLAY_SECONDS;
+    const done = (r: Runner) => (r.env.fallen ? r.fallTimer >= FALL_PAUSE : r.env.time >= limit - 1e-9);
+    // Avec un fantôme, on recommence quand les deux ont fini (chute ou fin de l'essai).
+    if (done(main) && (!ghost || done(ghost))) restartReplay();
   }
 
   let lastNow = 0;
   let frame = 0;
   const brainCanvas = $<HTMLCanvasElement>('brain');
   const chartCanvas = $<HTMLCanvasElement>('chart');
+  let lastSpeedUpdate = 0;
   disposers.push(
     rafLoop((now) => {
       const dt = lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0;
       lastNow = now;
-      if (env) {
+      const frozen = turboFrozen();
+      if (main && !frozen) {
         acc += dt * settings.replaySpeed;
         let n = 0;
         while (acc >= DT && n < 8) {
@@ -298,28 +369,135 @@ export function mount(root: HTMLElement): () => void {
           n++;
         }
         if (n === 8) acc = 0;
-        if (env) {
-          view?.update(env.poses());
+        if (main) {
+          view?.update(main.env.poses());
+          if (ghost) view?.updateGhost(ghost.env.poses());
           updateHud();
         }
       }
-      view?.render();
-      if (frame++ % 2 === 0) drawBrainPanel(brainCanvas, env ? obs : null, env ? actions : null, actuated, theme);
+      if (!frozen || frame % 15 === 0) view?.render();
+      if (!frozen && frame % 2 === 0)
+        drawBrainPanel(
+          brainCanvas,
+          main ? { obs, out: main.policy.last, legs: mainGait.legs, hz: mainGait.hz, phase: main.env.phase } : null,
+          actuated,
+          theme,
+        );
+      frame++;
       if (chartDirty) drawChartNow();
+      if (now - lastSpeedUpdate > 500) {
+        lastSpeedUpdate = now;
+        updateSpeedStat();
+      }
     }),
   );
 
   function updateHud(): void {
-    if (!env) return;
-    const parts = [
-      `<span>t = ${fr(env.time, 1)} s</span>`,
-      `<span>distance ${fmtM(env.distance)}</span>`,
-      `<span>cerveau : ${brainLabel}</span>`,
-    ];
-    if (replayDist8 !== null && env.time > EPISODE_SECONDS) parts.push(`<span>à 8 s : ${fmtM(replayDist8)}</span>`);
-    if (env.fallen) parts.push('<span class="quadruped3d-hud-bad">Chute ! Nouvel essai…</span>');
+    if (!main) return;
+    const e = main.env;
+    const parts = [`<span>t = ${fr(e.time, 1)} s</span>`, `<span>distance ${fmtM(e.distance)}</span>`];
+    parts.push(`<span>cerveau : ${viewing ? `génération ${viewing.generation}${viewing.offline ? ' (hors ligne)' : ''}` : brainLabel}</span>`);
+    if (main.dist8 !== null && e.time > EPISODE_SECONDS) parts.push(`<span>à 8 s : ${fmtM(main.dist8)}</span>`);
+    if (ghost) parts.push(`<span class="quadruped3d-hud-ghost">fantôme : ${fmtM(ghost.env.distance)}${ghost.env.fallen ? ' (chute)' : ''}</span>`);
+    if (e.fallen) parts.push('<span class="quadruped3d-hud-bad">Chute ! Nouvel essai…</span>');
     const html = parts.join('');
     if (hud.innerHTML !== html) hud.innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Moments clés : revoir, comparer
+  // ---------------------------------------------------------------------------
+  const viewingBox = $('viewing');
+  const viewingText = $('viewing-text');
+  function setViewing(m: Moment | null): void {
+    viewing = m;
+    viewingBox.hidden = !m;
+    if (m) {
+      const w = describeWorld(m.world);
+      viewingText.textContent = `Vous regardez la génération ${m.generation}${m.offline ? ' (entraînement hors ligne)' : ''} : ${fmt1(m.distance)} en 8 s${m.fell ? ', avec chute' : ''}${w ? ` · ${w}` : ''}.`;
+    }
+    timeline.setViewing(m);
+    updateTurbo();
+  }
+  function setGhost(g: Moment | 'live' | null): void {
+    ghostSel = g;
+    timeline.setGhost(g);
+  }
+  const timeline = new Timeline(root, {
+    onView: (m) => {
+      setViewing(m);
+      restartReplay();
+      if (m)
+        setStatus(
+          `Rejeu de « ${m.label} ».${training ? ' L’apprentissage continue en arrière-plan.' : ''} Cliquez sur « Revenir au direct » pour retrouver le cerveau actuel.`,
+        );
+    },
+    onGhost: (g) => {
+      setGhost(g);
+      restartReplay();
+      if (g) setStatus(`Fantôme gris dans le couloir voisin : ${g === 'live' ? 'le cerveau en direct' : `« ${g.label} »`}. Les deux robots partent en même temps.`);
+    },
+  });
+  $('live').addEventListener('click', () => {
+    setViewing(null);
+    restartReplay();
+    setStatus(training ? `Retour au direct : génération ${generation}.` : 'Retour au cerveau actuel.');
+  });
+  $('compare-quick').addEventListener('click', () => {
+    const ms = moments.moments;
+    if (ms.length < 2) {
+      setStatus('Il faut au moins deux moments clés pour comparer : lancez l’apprentissage quelques instants.');
+      return;
+    }
+    // Fantôme : un moment du début où le robot avance déjà un peu (la génération 0 tombe souvent sur place).
+    const first = ms.find((m) => m.distance >= 1 && m !== ms[ms.length - 1]) ?? ms[0];
+    const best = ms.reduce((a, b) => (b.distance > a.distance ? b : a), ms[ms.length - 1]);
+    setGhost(first);
+    setViewing(best);
+    restartReplay();
+    setStatus(`Comparaison : en couleur « ${best.label} », en gris « ${first.label} ».`);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Vitesse d'apprentissage
+  // ---------------------------------------------------------------------------
+  const speedBox = $('speed');
+  const speedHelp = $('speed-help');
+  const speedInputs = new Map<SpeedMode, HTMLInputElement>();
+  for (const sm of SPEED_MODES) {
+    const id = `quadruped3d-speed-${sm.id}`;
+    const lab = document.createElement('label');
+    lab.className = 'quadruped3d-speed-opt';
+    lab.htmlFor = id;
+    lab.innerHTML = `<input type="radio" name="quadruped3d-speed" id="${id}" value="${sm.id}" /> <span></span>`;
+    lab.querySelector('span')!.textContent = sm.label;
+    const input = lab.querySelector('input')!;
+    input.checked = sm.id === settings.speed;
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      settings.speed = sm.id;
+      pool?.setSize(workersFor(sm.id, maxWorkers));
+      refreshSpeedHelp();
+      updateTurbo();
+      if (!turboFrozen() && !viewing) restartReplay();
+    });
+    speedInputs.set(sm.id, input);
+    speedBox.appendChild(lab);
+  }
+  function refreshSpeedHelp(): void {
+    const sm = SPEED_MODES.find((s) => s.id === settings.speed)!;
+    const n = workersFor(sm.id, maxWorkers);
+    speedHelp.textContent = `${sm.help} Ici : ${n} fil${n > 1 ? 's' : ''} de calcul pour les essais (votre appareil annonce ${hwc ?? '?'} cœurs).`;
+    $('cores').textContent = `${n}`;
+  }
+  /** En turbo, pendant l'apprentissage, l'animation du direct est suspendue. */
+  const turboFrozen = () => settings.speed === 'turbo' && training && !viewing;
+  function updateTurbo(): void {
+    $('turbo').hidden = !turboFrozen();
+  }
+  function updateSpeedStat(): void {
+    const g = loop && training ? loop.gensPerSecond() : 0;
+    $('st-speed').textContent = training && g > 0 ? `${fr(g, 1)} gén./s` : '–';
   }
 
   // ---------------------------------------------------------------------------
@@ -357,25 +535,31 @@ export function mount(root: HTMLElement): () => void {
   function updateButtons(): void {
     btnTrain.textContent = training ? 'Pause' : needReset ? 'Réapprendre' : 'Reprendre';
     btnTrain.classList.toggle('active', training);
-    btnTrain.disabled = !worker || !physicsReady;
+    btnTrain.disabled = !loop || !physicsReady;
   }
 
-  btnTrain.addEventListener('click', () => setTraining(!training));
+  btnTrain.addEventListener('click', () => {
+    if (!training && needReset) {
+      moments.markRestart();
+      if (!phaseWhat) phaseWhat = 'Réapprendre';
+    }
+    setTraining(!training);
+  });
   $('btn-replay').addEventListener('click', () => restartReplay());
   $('btn-pretrained').addEventListener('click', () => {
     if (settings.world.brokenFrontLeft) {
-      loadBrain(PRETRAINED_BROKEN.params, 'pré-entraîné (3 pattes)');
-      setStatus(
-        `Cerveau pré-entraîné pour la patte avant gauche cassée : ${PRETRAINED_BROKEN.history}.`,
-      );
+      loadBrain(PRETRAINED_BROKEN.params, 'pré-entraîné (3 pattes)', 'broken');
+      setStatus(`Cerveau pré-entraîné pour la patte avant gauche cassée : ${PRETRAINED_BROKEN.history}.`);
     } else {
-      loadBrain(PRETRAINED_HEALTHY.params, 'pré-entraîné (robot intact)');
+      loadBrain(PRETRAINED_HEALTHY.params, 'pré-entraîné (robot intact)', 'healthy');
       setStatus(`Cerveau pré-entraîné hors ligne pour le robot intact : ${PRETRAINED_HEALTHY.history}.`);
     }
   });
   $('btn-scratch').addEventListener('click', () => {
-    loadBrain(randomBrain(1000 + seed), 'aléatoire');
-    setStatus('Nouveau cerveau aléatoire : il ne sait rien faire. Cliquez sur « Réapprendre » et soyez patient : il faut souvent plus d’une centaine de générations (plusieurs minutes).');
+    loadBrain(randomBrain(1000 + seed), 'aléatoire', 'none');
+    setStatus(
+      'Nouveau cerveau aléatoire : les métronomes battent, mais leurs réglages sont pris au hasard. Cliquez sur « Réapprendre ». Une fois sur deux ou trois, une vraie démarche (plus de 8 m) apparaît en moins de 100 générations ; sinon l’apprentissage reste coincé sous 4 m (le robot piétine, rampe ou se jette en avant) : retentez, c’est un autre hasard.',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -393,8 +577,10 @@ export function mount(root: HTMLElement): () => void {
       wrap.querySelector('.help')!.textContent = iv.help;
       const input = wrap.querySelector('input')!;
       input.addEventListener('change', () => {
+        const prev = { ...settings.world };
         iv.set(settings.world, input.checked);
-        onWorldChanged(`${input.checked ? 'Intervention' : 'Retour à la normale'} : « ${iv.label} ».`);
+        const what = `${input.checked ? '' : 'fin : '}${iv.label.toLowerCase()}`;
+        onWorldChanged(`${input.checked ? 'Intervention' : 'Retour à la normale'} : « ${iv.label} ».`, what, prev);
       });
       interventionInputs.set(iv.id, input);
       box.appendChild(wrap);
@@ -403,17 +589,22 @@ export function mount(root: HTMLElement): () => void {
   function syncInterventions(): void {
     for (const iv of INTERVENTIONS) interventionInputs.get(iv.id)!.checked = iv.get(settings.world);
   }
-  function onWorldChanged(what: string): void {
-    send({ type: 'world', world: { ...settings.world } });
-    // Le record n'a de sens que dans un même monde : il repart de la performance actuelle.
+  function onWorldChanged(msg: string, what: string, prev: WorldParams): void {
+    loop?.setWorld(settings.world);
+    // « Avant » : le dernier cerveau noté, ou à défaut le cerveau affiché noté dans l'ancien monde.
+    const before =
+      lastGen ?? (lastEval ? { generation, distance: lastEval.distance, fell: lastEval.fell, params: brain, world: prev } : null);
+    moments.markChange(before, what);
+    phaseWhat = what;
+    timeline.setMoments(moments.moments);
     record = -Infinity;
     clearScenarioButtons();
     evaluateCurrent();
     markBaseline();
-    restartReplay();
+    if (!viewing) restartReplay();
     const d = lastEval ? ` Avec le cerveau actuel, il parcourt maintenant ${fmtM(lastEval.distance)} en 8 s${lastEval.fell ? ' et tombe' : ''}.` : '';
     setStatus(
-      `${what}${d} ${training ? 'L’apprentissage continue dans ce nouveau monde.' : 'Cliquez sur « ' + (needReset ? 'Réapprendre' : 'Reprendre') + ' » pour qu’il s’adapte.'}`,
+      `${msg}${d} ${training ? 'L’apprentissage continue dans ce nouveau monde.' : 'Cliquez sur « ' + (needReset ? 'Réapprendre' : 'Reprendre') + ' » pour qu’il s’adapte.'}`,
     );
   }
 
@@ -443,10 +634,10 @@ export function mount(root: HTMLElement): () => void {
         settings[t.id] = Number(range.value);
         if (t.id === 'curiosity') {
           settings.hyper.sigma = SIGMA_LEVELS[settings.curiosity];
-          send({ type: 'hyper', hyper: { sigma: settings.hyper.sigma } });
+          loop?.setHyper({ sigma: settings.hyper.sigma });
           syncExpert();
         } else {
-          send({ type: 'reward', reward: rewardOf(settings) });
+          loop?.setReward(rewardOf(settings));
         }
         refreshTraits();
       });
@@ -487,7 +678,7 @@ export function mount(root: HTMLElement): () => void {
           if (def.id === 'replaySpeed') settings.replaySpeed = v;
           else {
             settings.hyper[def.id] = v;
-            send({ type: 'hyper', hyper: { [def.id]: v } });
+            loop?.setHyper({ [def.id]: v });
             if (def.id === 'sigma') refreshTraits();
           }
         },
@@ -510,16 +701,26 @@ export function mount(root: HTMLElement): () => void {
   function applyScenario(sc: Scenario, btn: HTMLButtonElement): void {
     settings.world = { ...DEFAULT_WORLD, ...sc.world };
     syncInterventions();
-    send({ type: 'world', world: { ...settings.world } });
-    if (sc.brain === 'random') loadBrain(randomBrain(2000 + seed), 'aléatoire');
-    else if (sc.brain === 'broken') loadBrain(PRETRAINED_BROKEN.params, 'pré-entraîné (3 pattes)');
-    else loadBrain(PRETRAINED_HEALTHY.params, 'pré-entraîné (robot intact)');
+    loop?.setWorld(settings.world);
+    if (sc.brain === 'random') loadBrain(randomBrain(sc.seeds?.brain ?? 2000 + seed), 'aléatoire', 'none');
+    else if (sc.brain === 'broken') loadBrain(PRETRAINED_BROKEN.params, 'pré-entraîné (3 pattes)', 'broken');
+    else loadBrain(PRETRAINED_HEALTHY.params, 'pré-entraîné (robot intact)', 'healthy');
+    // Le cerveau sain posé dans un monde blessé : on garde la trace « avant / après » dans la frise.
+    if (sc.brain === 'healthy' && sc.id !== 'demo') {
+      moments.markChange(
+        { generation: 0, distance: PRETRAINED_HEALTHY.distance, fell: false, params: PRETRAINED_HEALTHY.params, world: { ...DEFAULT_WORLD } },
+        describeWorld(settings.world),
+      );
+      phaseWhat = describeWorld(settings.world);
+      timeline.setMoments(moments.moments);
+    }
     scenarioBox.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === btn));
     const info = $('scenario-info');
     info.replaceChildren();
     const strong = document.createElement('strong');
     strong.textContent = `${sc.label}. `;
-    info.append(strong, sc.description);
+    info.append(strong, fillFigures(sc.description));
+    fixedTrainerSeed = sc.seeds?.trainer ?? null;
     if (sc.autoTrain) setTraining(true);
     else {
       const d = lastEval ? ` Cerveau actuel : ${fmtM(lastEval.distance)} en 8 s${lastEval.fell ? ', avec chute' : ''}.` : '';
@@ -533,7 +734,6 @@ export function mount(root: HTMLElement): () => void {
     b.addEventListener('click', () => applyScenario(sc, b));
     scenarioBox.appendChild(b);
   }
-  // Raccourci du bloc « Commencez ici » : scénario de la blessure, puis on montre le robot.
   $('start-injury').addEventListener('click', () => {
     const i = SCENARIOS.findIndex((sc) => sc.id === 'injury');
     if (i < 0 || !physicsReady) return;
@@ -554,8 +754,10 @@ export function mount(root: HTMLElement): () => void {
   disposers.push(onResize(chartCanvas, () => (chartDirty = true)));
 
   refreshTraits();
+  refreshSpeedHelp();
   updateStats();
   updateButtons();
+  timeline.setMoments([]);
   setStatus('Chargement du moteur physique…');
 
   initPhysics()
@@ -563,12 +765,9 @@ export function mount(root: HTMLElement): () => void {
       if (disposed) return;
       physicsReady = true;
       loading.hidden = !!view;
-      evaluateCurrent();
-      markBaseline();
-      restartReplay();
-      updateButtons();
+      loadBrain(PRETRAINED_HEALTHY.params, 'pré-entraîné (robot intact)', 'healthy');
       setStatus(
-        `Le robot utilise un cerveau pré-entraîné (${PRETRAINED_HEALTHY.generation} générations hors ligne). Pour le voir apprendre, cassez-lui une patte (bloc « Commencez ici ») puis cliquez sur « Réapprendre ».`,
+        `Le robot utilise un cerveau pré-entraîné (${PRETRAINED_HEALTHY.generation} générations hors ligne). Revoyez son apprentissage dans les « Moments clés », ou cassez-lui une patte (bloc « Commencez ici ») puis cliquez sur « Réapprendre ».`,
       );
     })
     .catch((e) => {

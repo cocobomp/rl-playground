@@ -27,6 +27,8 @@ export const LOWER_RADIUS = 0.032;
 /** Débattement des articulations (radians, symétrique). */
 export const HIP_RANGE = 0.9;
 export const KNEE_RANGE = 1.2;
+/** En dessous de cette hauteur (m) du centre du tronc, on considère que le robot est tombé. */
+export const FALL_HEIGHT = 0.16;
 /** Hauteur initiale du centre du tronc : pattes tendues, pieds juste au-dessus du sol. */
 export const START_HEIGHT = -HIP_OFFSET.y + 4 * UPPER_HALF_LEN + LOWER_RADIUS + 0.01;
 
@@ -70,8 +72,8 @@ export const MOTOR_DAMPING = 4;
 export const MOTOR_MAX_TORQUE = 28;
 /** Masse du tronc (kg) avant multiplicateur. */
 export const TORSO_MASS = 6;
-/** Fréquence du rythme de marche interne (Hz). */
-export const GAIT_HZ = 1.6;
+/** Fréquence de référence du rythme de marche interne (Hz) ; chaque cerveau peut l'ajuster. */
+export const GAIT_HZ = 2.2;
 
 let initPromise: Promise<void> | null = null;
 /** Initialise le module WebAssembly de Rapier (une seule fois). */
@@ -162,6 +164,10 @@ export class QuadrupedEnv {
   readonly angles = new Float64Array(NUM_JOINTS);
   readonly angVels = new Float64Array(NUM_JOINTS);
   steps = 0;
+  /** Fréquence du rythme interne (Hz), choisie par le cerveau (voir runEpisode). */
+  gaitHz = GAIT_HZ;
+  /** Phase du rythme interne (radians), intégrée pas à pas. */
+  phase = 0;
   /** Énergie mécanique estimée dépensée par les moteurs (J). */
   energy = 0;
   /** Somme de l'inclinaison du tronc (rad · pas). */
@@ -292,11 +298,6 @@ export class QuadrupedEnv {
     return this.steps * DT;
   }
 
-  /** Phase du rythme interne (radians). */
-  get phase(): number {
-    return 2 * Math.PI * GAIT_HZ * this.time;
-  }
-
   /** Distance parcourue vers l'avant (m). */
   get distance(): number {
     return this.torso.translation().x - this.startX;
@@ -351,6 +352,8 @@ export class QuadrupedEnv {
     }
     this.world.step();
     this.steps++;
+    this.phase += 2 * Math.PI * this.gaitHz * DT;
+    if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI;
     this.prevAngles.set(this.angles);
     this.readJoints();
     let power = 0;
@@ -370,7 +373,7 @@ export class QuadrupedEnv {
     const up = this.upVector();
     this.tiltSum += Math.acos(Math.max(-1, Math.min(1, up.y)));
     const h = this.torso.translation().y;
-    if (up.y < 0.3 || h < 0.16) this.fallen = true;
+    if (up.y < 0.3 || h < FALL_HEIGHT) this.fallen = true;
   }
 
   /** Pose de chaque pièce (tronc, 4 cuisses, 4 tibias) pour l'affichage. */
@@ -408,12 +411,19 @@ export function fitnessOf(distance: number, energy: number, tilt: number, fell: 
   return distance - r.energyWeight * energy - r.stabilityWeight * tilt - (fell ? r.fallPenalty : 0);
 }
 
-/** Politique : observation → actions dans [-1, 1]. */
-export type Policy = (obs: Float64Array) => ArrayLike<number>;
+/** Politique : observation → actions dans [-1, 1], avec éventuellement son propre tempo (Hz). */
+export type Policy = ((obs: Float64Array) => ArrayLike<number>) & { gaitHz?: number };
+
+/** Prépare un environnement pour une politique (tempo du rythme interne). */
+export function newEnvFor(policy: Policy, world: WorldParams): QuadrupedEnv {
+  const env = new QuadrupedEnv(world);
+  env.gaitHz = policy.gaitHz ?? GAIT_HZ;
+  return env;
+}
 
 /** Joue un essai (EPISODE_STEPS pas ou jusqu'à la chute) et le note. */
 export function runEpisode(policy: Policy, world: WorldParams, reward: RewardParams, steps = EPISODE_STEPS): EpisodeResult {
-  const env = new QuadrupedEnv(world);
+  const env = newEnvFor(policy, world);
   const obs = new Float64Array(OBS_SIZE);
   try {
     while (env.steps < steps && !env.fallen) {

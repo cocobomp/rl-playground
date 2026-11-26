@@ -1,15 +1,16 @@
-// Messages échangés entre la page et le worker d'entraînement.
-import type { EsHyper, GenerationReport } from './agent';
-import type { RewardParams, WorldParams } from './env';
+// Messages échangés entre la page et les workers d'évaluation.
+import type { EpisodeResult, RewardParams, WorldParams } from './env';
 
-export type ToWorker =
-  | { type: 'reset'; runId: number; brain: number[]; world: WorldParams; reward: RewardParams; hyper: EsHyper; seed: number }
-  | { type: 'run'; on: boolean }
-  | { type: 'world'; world: WorldParams }
-  | { type: 'reward'; reward: RewardParams }
-  | { type: 'hyper'; hyper: Partial<EsHyper> };
+export type ToWorker = {
+  type: 'eval';
+  batch: number;
+  index: number;
+  params: Float64Array;
+  world: WorldParams;
+  reward: RewardParams;
+};
 
 export type FromWorker =
-  | { type: 'ready'; runId: number }
-  | { type: 'gen'; runId: number; report: GenerationReport; brain: number[] }
+  | { type: 'ready' }
+  | { type: 'result'; batch: number; index: number; result: EpisodeResult }
   | { type: 'error'; message: string };

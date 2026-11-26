@@ -132,7 +132,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Un cerveau entraîné à l’avance (environ 800 générations de 48 essais) sur le robot intact. Regardez la démarche : elle n’a rien d’humain (torse penché, pas rapides), mais elle avance vite, environ 27 m en 10 s, sans tomber. Elle respecte pourtant le score à la lettre : aller loin sans tomber, personne n’a demandé de marcher « joliment ». Notez cette distance dans le tableau des mesures.',
+      'Un cerveau entraîné à l’avance (800 générations de 48 essais) sur le robot intact. Regardez la démarche : elle n’a rien d’humain (torse penché, pas rapides), mais elle avance vite, environ 28 m en 10 s, sans tomber. Elle respecte pourtant le score à la lettre : aller loin sans tomber, personne n’a demandé de marcher « joliment ». Ouvrez les « Moments clés » pour revoir son apprentissage : à la génération 0, il tombe tout de suite.',
   },
   injuredBefore: {
     label: 'Blessure au genou : avant adaptation',
@@ -148,7 +148,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'injured',
     autoTrain: false,
     description:
-      'Le cerveau a été réentraîné avec le genou bloqué, en partant du cerveau sain. Il a trouvé une nouvelle démarche qui compense la jambe raide. Comparez avec « avant adaptation » dans le tableau des mesures : on passe d’environ 11 m à environ 27 m, autant que le robot intact. Dans ce monde simplifié, une bonne démarche n’avait pas vraiment besoin de ce genou ! Essayez ensuite « Tout réparer » : ce cerveau spécialisé fait nettement moins bien sur le robot intact.',
+      'Le cerveau a été réentraîné avec le genou bloqué, en partant du cerveau sain. Il a trouvé une nouvelle démarche qui compense la jambe raide. Comparez avec « avant adaptation » dans le tableau des mesures : on passe d’environ 11 m à environ 27 m, presque autant que le robot intact. Les « Moments clés » montrent la blessure puis l’adaptation : deux générations suffisent déjà pour dépasser 20 m. Dans ce monde simplifié, une bonne démarche n’avait pas vraiment besoin de ce genou ! Essayez ensuite « Tout réparer » : ce cerveau spécialisé fait nettement moins bien sur le robot intact.',
   },
   scratch: {
     label: 'À vous de l’entraîner',
@@ -156,7 +156,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'random',
     autoTrain: true,
     description:
-      'Un cerveau tiré au hasard : au début, le robot s’effondre en une ou deux secondes. L’apprentissage démarre tout de suite. Regardez la courbe et le robot : en général, il tient debout après quelques dizaines de générations, puis avance de plus en plus loin (souvent une vingtaine de mètres après 300 générations, soit une à deux minutes). Sa démarche ne ressemblera sans doute pas à celle du cerveau pré-entraîné : le score dit quoi atteindre, pas comment marcher. Ajoutez une blessure quand vous voulez.',
+      'Un cerveau tiré au hasard : au début, le robot s’effondre en une ou deux secondes. L’apprentissage démarre tout de suite. Regardez la courbe, le robot et les « Moments clés » : en général, il tient debout dès les premières générations, dépasse 10 m après quelques dizaines de générations (une dizaine de secondes en vitesse Rapide), puis avance de plus en plus loin (souvent une vingtaine de mètres après 300 générations). Sa démarche ne ressemblera sans doute pas à celle du cerveau pré-entraîné : le score dit quoi atteindre, pas comment marcher. Ajoutez une blessure quand vous voulez.',
   },
 };
 

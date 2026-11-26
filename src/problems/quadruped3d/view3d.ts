@@ -13,6 +13,8 @@ import {
   type WorldParams,
 } from './env';
 
+/** Décalage latéral du fantôme (m) : il marche dans un couloir voisin pour ne pas cacher le robot. */
+export const GHOST_LANE = -0.95;
 /** Longueur de piste graduée (m). */
 const TRACK_LEN = 60;
 const TRACK_BACK = 10;
@@ -49,6 +51,11 @@ export class RobotView {
   private lower: THREE.Mesh[] = [];
   private stumpCaps: THREE.Mesh[] = [];
   private lockRing: THREE.Mesh;
+  private ghost = new THREE.Group();
+  private ghostTorso: THREE.Mesh;
+  private ghostUpper: THREE.Mesh[] = [];
+  private ghostLower: THREE.Mesh[] = [];
+  private ghostMat: THREE.MeshStandardMaterial;
   private mats: {
     torso: THREE.MeshStandardMaterial;
     leg: THREE.MeshStandardMaterial;
@@ -156,6 +163,22 @@ export class RobotView {
     this.lockRing.visible = false;
     this.upper[3].add(this.lockRing);
 
+    // Fantôme (comparaison de deux générations) : même robot, translucide, dans le couloir voisin.
+    this.ghostMat = new THREE.MeshStandardMaterial({ color: '#888', transparent: true, opacity: 0.45, roughness: 0.7, depthWrite: false });
+    this.disposables.push(this.ghostMat);
+    this.ghostTorso = new THREE.Mesh(torsoGeo, this.ghostMat);
+    this.ghost.add(this.ghostTorso);
+    for (let leg = 0; leg < NUM_LEGS; leg++) {
+      const u = new THREE.Mesh(upperGeo, this.ghostMat);
+      const l = new THREE.Mesh(lowerGeo, this.ghostMat);
+      this.ghostUpper.push(u);
+      this.ghostLower.push(l);
+      this.ghost.add(u, l);
+    }
+    this.ghost.position.z = GHOST_LANE;
+    this.ghost.visible = false;
+    this.scene.add(this.ghost);
+
     this.applyTheme(theme);
   }
 
@@ -175,6 +198,7 @@ export class RobotView {
     this.mats.legAlt.color.set(t.series[3] || '#9b51c9');
     this.mats.bad.color.set(t.trap || '#d64545');
     this.mats.front.color.set(t.goal || '#2e9e5b');
+    this.ghostMat.color.set(t.muted || '#5b6475');
     this.paintGround();
     this.buildMarkers();
   }
@@ -248,6 +272,25 @@ export class RobotView {
     this.lower[0].visible = !w.brokenFrontLeft;
     this.stumpCaps[0].visible = w.brokenFrontLeft;
     this.lockRing.visible = w.lockedRearRightKnee;
+  }
+
+  /** Montre ou cache le fantôme (et sa patte cassée éventuelle). */
+  setGhost(w: WorldParams | null): void {
+    this.ghost.visible = !!w;
+    if (w) this.ghostLower[0].visible = !w.brokenFrontLeft;
+  }
+
+  updateGhost(p: RobotPoses): void {
+    const set = (m: THREE.Object3D, pose: PartPose) => {
+      m.position.set(pose.p.x, pose.p.y, pose.p.z);
+      m.quaternion.set(pose.q.x, pose.q.y, pose.q.z, pose.q.w);
+    };
+    set(this.ghostTorso, p.torso);
+    for (let i = 0; i < NUM_LEGS; i++) {
+      set(this.ghostUpper[i], p.upper[i]);
+      const lp = p.lower[i];
+      if (lp) set(this.ghostLower[i], lp);
+    }
   }
 
   /** Recentre la caméra derrière le robot (après une remise à zéro). */

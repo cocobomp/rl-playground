@@ -25,6 +25,8 @@ export class TrainerPool {
   private inbox: FromWorker[] = [];
   private t0 = 0;
   generation = 0;
+  /** Nombre de workers qui calculent (les autres restent synchronisés sans évaluer). */
+  private active = 1;
 
   constructor(
     count: number,
@@ -74,7 +76,6 @@ export class TrainerPool {
         type: 'init',
         runId: this.runId,
         index,
-        count: this.workers.length,
         seed,
         init: initArr,
         config: { ...config },
@@ -94,6 +95,23 @@ export class TrainerPool {
     this.send({ type: 'hyper', es: { ...es } });
   }
 
+  /** Arrête et oublie la génération en cours de calcul (son résultat sera ignoré). Il faudra un start() pour reprendre. */
+  stop(): void {
+    this.running = false;
+    this.runId++;
+    this.awaiting = false;
+    this.inbox = [];
+  }
+
+  /** Nombre de workers mis au travail à partir de la génération suivante (1 … nombre de workers). */
+  setActive(n: number): void {
+    this.active = Math.max(1, Math.min(this.workers.length || 1, Math.round(n)));
+  }
+
+  get activeCount(): number {
+    return Math.min(this.active, this.workers.length);
+  }
+
   setRunning(on: boolean): void {
     this.running = on && !this.failed && this.workers.length > 0;
     if (this.running && !this.awaiting) this.dispatch();
@@ -103,7 +121,7 @@ export class TrainerPool {
     this.awaiting = true;
     this.inbox = [];
     this.t0 = performance.now();
-    this.send({ type: 'gen', runId: this.runId, fitness: this.pendingFitness });
+    this.send({ type: 'gen', runId: this.runId, fitness: this.pendingFitness, active: this.activeCount });
   }
 
   private receive(m: FromWorker) {

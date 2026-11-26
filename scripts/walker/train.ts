@@ -38,6 +38,10 @@ function trainOne(): void {
   const lr = Number(arg('lr', '0.03'));
   const out = arg('out')!;
   const initPath = arg('init');
+  // --trace fichier : pour chaque génération, la meilleure distance/score, la moyenne et le cerveau de la génération
+  // (binaire Float64 : [gen, bestDist, bestFit, bestFell, meanDist, meanFit, ...params]), pour bâtir les « moments clés ».
+  const tracePath = arg('trace');
+  const traceChunks: Buffer[] = [];
   const init = initPath ? MLP.fromJSON(JSON.parse(readFileSync(initPath, 'utf8'))).params : randomParams(seed);
   const es = makeES(init, { popSize: pop, sigma, lr }, seed * 7919 + 13);
   let bestFit = -Infinity;
@@ -48,6 +52,14 @@ function trainOne(): void {
   console.log(`[${task} s${seed}] départ : ${first.distance.toFixed(2)} m, chute=${first.fell}, score ${first.fitness.toFixed(2)}`);
   for (let g = 1; g <= gens; g++) {
     const rep = runGeneration(es, config, DEFAULT_OBJECTIVES);
+    if (tracePath) {
+      const gb = rep.theta.fitness >= rep.best.fitness ? { r: rep.theta, p: es.theta } : { r: rep.best, p: rep.bestParams };
+      // NB : es.theta est déjà mis à jour ici ; rep.theta est le résultat du θ mis à jour (voir runGeneration).
+      const row = new Float64Array(6 + gb.p.length);
+      row.set([g, gb.r.distance, gb.r.fitness, gb.r.fell ? 1 : 0, rep.meanDistance, rep.mean]);
+      row.set(gb.p, 6);
+      traceChunks.push(Buffer.from(row.buffer));
+    }
     for (const [r, p] of [
       [rep.best, rep.bestParams],
       [rep.theta, es.theta],
@@ -63,6 +75,7 @@ function trainOne(): void {
         `[${task} s${seed}] gen ${g} moy ${rep.mean.toFixed(2)} θ ${rep.theta.fitness.toFixed(2)} record ${bestFit.toFixed(2)} (${b.distance.toFixed(2)} m, ${b.energy.toFixed(0)} J, chute=${b.fell}) ${((Date.now() - t0) / 1000).toFixed(0)} s`,
       );
       writeFileSync(out, JSON.stringify({ fitness: bestFit, brain: new MLP(NET_SIZES, 'tanh', bestParams).toJSON() }));
+      if (tracePath) writeFileSync(tracePath, Buffer.concat(traceChunks));
     }
   }
 }
