@@ -467,15 +467,17 @@ button.active {
   color: var(--accent);
 }
 
-/* Mode intégré (iframe) : ?embed=1 masque l'en-tête, le menu, le pied de page et les explications longues */
-.embed .site-header,
-.embed .site-footer,
-.embed .explain-panel,
-.embed .problem-head {
+/* Mode intégré (iframe) : ?embed=1 masque le titre du site et le pied de page.
+   Le menu des problèmes et les explications restent : ils sont le cœur pédagogique. */
+.embed h1,
+.embed .site-footer {
   display: none;
 }
+.embed .site-header {
+  padding-top: 8px;
+}
 .embed .app {
-  padding: 8px;
+  padding: 12px 8px;
 }
 
 /* Classes utilitaires communes aux problèmes */

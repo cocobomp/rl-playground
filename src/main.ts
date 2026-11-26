@@ -2,9 +2,24 @@ import './style.css';
 import { PROBLEMS } from './problems/index';
 import { h } from './shared/ui';
 
-// Mode intégré (iframe) : ?embed=1 masque l'en-tête, le menu et le pied de page.
+// Mode intégré (iframe) : ?embed=1 masque le titre du site et le pied de page,
+// garde le menu des problèmes et les explications, et annonce la hauteur de la
+// page au site parent pour qu'il ajuste l'iframe (message « rl-playground:height »).
 const embed = new URLSearchParams(location.search).has('embed');
-if (embed) document.documentElement.classList.add('embed');
+if (embed) {
+  document.documentElement.classList.add('embed');
+  if (window.parent !== window) {
+    let last = 0;
+    const announce = () => {
+      const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+      if (Math.abs(height - last) < 2) return;
+      last = height;
+      window.parent.postMessage({ type: 'rl-playground:height', height }, '*');
+    };
+    new ResizeObserver(announce).observe(document.body);
+    window.addEventListener('load', announce);
+  }
+}
 
 const app = document.getElementById('app')!;
 const nav = document.getElementById('nav')!;
