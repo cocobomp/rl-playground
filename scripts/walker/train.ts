@@ -74,13 +74,13 @@ function runChild(args: string[]): Promise<void> {
   });
 }
 
-async function pickBest(task: string, seeds: number[], extra: string[]): Promise<string> {
-  const files = seeds.map((s) => `/tmp/walker-${task}-${s}.json`);
+async function pickBest(task: string, outName: string, seeds: number[], extra: string[]): Promise<string> {
+  const files = seeds.map((s) => `/tmp/walker-${outName}-${s}.json`);
   await Promise.all(seeds.map((s, i) => runChild(['--task', task, '--seed', String(s), '--out', files[i], ...extra])));
   const all = files.map((f) => JSON.parse(readFileSync(f, 'utf8')) as { fitness: number; brain: unknown });
   all.sort((a, b) => b.fitness - a.fitness);
   mkdirSync(outDir, { recursive: true });
-  const dest = resolve(outDir, `${task}.json`);
+  const dest = resolve(outDir, `${outName}.json`);
   writeFileSync(dest, JSON.stringify(all[0].brain));
   console.log(`→ ${dest} (score ${all[0].fitness.toFixed(2)})`);
   return dest;
@@ -90,8 +90,16 @@ async function main() {
   if (!process.argv.includes('--all')) return trainOne();
   const procs = Number(arg('procs', '3'));
   const seeds = Array.from({ length: procs }, (_, i) => i + 1);
-  const healthy = await pickBest('healthy', seeds, ['--gens', arg('gens-healthy', '400')!]);
-  await pickBest('injured', seeds, ['--gens', arg('gens-injured', '200')!, '--init', healthy, '--sigma', '0.05']);
+  // 1) robot intact, à partir de zéro ; 2) affinage du même cerveau (bruit plus faible) ;
+  // 3) genou gauche bloqué, en partant du cerveau sain affiné, avec le même budget que l'affinage
+  //    (comparaison équitable : le cerveau blessé n'a pas eu plus d'entraînement que le sain).
+  const fine = arg('gens-fine', '300')!;
+  // --skip-scratch : reprend le healthy.json existant (étape 1 déjà faite).
+  let healthy = process.argv.includes('--skip-scratch')
+    ? resolve(outDir, 'healthy.json')
+    : await pickBest('healthy', 'healthy', seeds, ['--gens', arg('gens-healthy', '500')!]);
+  healthy = await pickBest('healthy', 'healthy', seeds.map((s) => s + 10), ['--gens', fine, '--init', healthy, '--sigma', '0.05']);
+  await pickBest('injured', 'injured', seeds, ['--gens', fine, '--init', healthy, '--sigma', '0.05']);
 }
 
 main();

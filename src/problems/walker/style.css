@@ -1,0 +1,213 @@
+/* Styles propres au robot marcheur : toutes les classes sont préfixées par walker- */
+.walker-stage-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 220px;
+  max-height: 440px;
+}
+.walker-stage {
+  width: 100%;
+  height: 100%;
+}
+.walker-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 8px 0 0;
+}
+.walker-sw {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.walker-sw-left { background: var(--series-2); }
+.walker-sw-right { background: var(--series-1); }
+.walker-sw-contact { background: var(--goal); border-radius: 50%; }
+.walker-sw-ghost { background: var(--muted); opacity: 0.4; }
+.walker-inline-label {
+  color: var(--muted);
+}
+.walker-root .map-actions .segmented button {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+.walker-root button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Tableau des mesures */
+.walker-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.walker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  margin-top: 8px;
+}
+.walker-table th,
+.walker-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.walker-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+.walker-table td:not(:first-child),
+.walker-table th:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.walker-table tbody tr:first-child td {
+  font-weight: 600;
+}
+.walker-table .walker-bad {
+  color: var(--trap);
+}
+.walker-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+@media (max-width: 480px) {
+  .walker-table {
+    font-size: 0.78rem;
+  }
+  .walker-table th,
+  .walker-table td {
+    padding: 4px 3px;
+  }
+}
+
+/* Graphique */
+.walker-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.walker-chart-head h2 {
+  margin: 0;
+}
+.walker-chart-head .segmented button {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+.walker-chart {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+.walker-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.walker-line {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 3px solid var(--chart-avg);
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.walker-line-best {
+  border-top: 3px dashed var(--series-2);
+}
+
+/* Interventions */
+.walker-intro {
+  margin-bottom: 10px;
+}
+.walker-interventions {
+  display: grid;
+  gap: 8px;
+}
+.walker-intervention {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: border-color 0.15s;
+}
+.walker-intervention.walker-on {
+  border-color: var(--trap);
+  box-shadow: inset 3px 0 0 var(--trap);
+}
+.walker-int-label {
+  font-weight: 600;
+}
+.walker-int-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--trap);
+}
+
+/* Objectifs */
+.walker-knobs {
+  display: grid;
+  gap: 14px;
+}
+.walker-knob {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.walker-knob:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.walker-knob-name {
+  font-weight: 600;
+}
+.walker-knob output {
+  color: var(--accent);
+  font-weight: 600;
+}
+.walker-knob output.walker-custom {
+  color: var(--muted);
+  font-style: italic;
+}
+.walker-knob-control {
+  margin-top: 6px;
+}
+.walker-knob-control input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.walker-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.walker-seg {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.walker-seg button {
+  flex: 1 1 auto;
+  padding: 5px 10px;
+  font-size: 0.88rem;
+}
+.walker-formula {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  white-space: normal;
+}
+.walker-formula-inline {
+  display: block;
+  margin: 6px 0;
+  font-size: 0.82rem;
+  white-space: normal;
+}

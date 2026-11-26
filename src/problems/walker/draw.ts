@@ -88,7 +88,19 @@ export function drawStage(
     ctx.setLineDash([]);
   }
 
-  if (ghost) drawRobot(ctx, X, Y, s, theme, ghost, true);
+  if (ghost) {
+    drawRobot(ctx, X, Y, s, theme, ghost, true);
+    // Fantôme hors champ : petite flèche sur le bord
+    const gx = X(ghost.pose.hull.x);
+    if (gx > w + 10 || gx < -10) {
+      const ahead = gx > w;
+      ctx.fillStyle = theme.muted;
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.textAlign = ahead ? 'right' : 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(ahead ? 'fantôme →' : '← fantôme', ahead ? w - 8 : 8, h * 0.55);
+    }
+  }
   drawRobot(ctx, X, Y, s, theme, main, false);
 
   // Texte d'information

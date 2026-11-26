@@ -62,7 +62,7 @@ export interface RewardParams {
   fallPenalty: number;
 }
 
-export const DEFAULT_REWARD: RewardParams = { energyWeight: 0.002, stabilityWeight: 0.5, fallPenalty: 2 };
+export const DEFAULT_REWARD: RewardParams = { energyWeight: 0.001, stabilityWeight: 0.2, fallPenalty: 1 };
 
 /** Raideur, amortissement et couple maximal des moteurs (N·m/rad, N·m·s/rad, N·m). */
 export const MOTOR_STIFFNESS = 90;
@@ -248,24 +248,23 @@ export class QuadrupedEnv {
         lower,
       );
       this.lower.push(lower);
-      const knee = world.createImpulseJoint(
-        RAPIER.JointData.revolute({ x: 0, y: -UPPER_HALF_LEN, z: 0 }, { x: 0, y: LOWER_HALF_LEN, z: 0 }, axis),
-        upper,
-        lower,
-        true,
-      ) as RAPIER.RevoluteImpulseJoint;
-      knee.setContactsEnabled(false);
       const locked = leg === 3 && p.lockedRearRightKnee;
+      const kneeA = { x: 0, y: -UPPER_HALF_LEN, z: 0 };
+      const kneeB = { x: 0, y: LOWER_HALF_LEN, z: 0 };
       if (locked) {
-        // Genou bloqué : butées confondues à 0 (jambe tendue), le moteur ne sert plus à rien.
-        knee.setLimits(0, 0);
-      } else {
-        knee.setLimits(-KNEE_RANGE, KNEE_RANGE);
-        knee.configureMotorModel(RAPIER.MotorModel.ForceBased);
-        knee.setMotorMaxForce(maxTorque);
-        knee.configureMotorPosition(0, MOTOR_STIFFNESS, MOTOR_DAMPING);
+        // Genou bloqué : liaison rigide (jambe tendue), le moteur n'existe plus.
+        const id = { x: 0, y: 0, z: 0, w: 1 };
+        world.createImpulseJoint(RAPIER.JointData.fixed(kneeA, id, kneeB, id), upper, lower, true).setContactsEnabled(false);
+        this.joints.push({ joint: null, parent: upper, child: lower, range: KNEE_RANGE, locked: true });
+        continue;
       }
-      this.joints.push({ joint: knee, parent: upper, child: lower, range: KNEE_RANGE, locked });
+      const knee = world.createImpulseJoint(RAPIER.JointData.revolute(kneeA, kneeB, axis), upper, lower, true) as RAPIER.RevoluteImpulseJoint;
+      knee.setContactsEnabled(false);
+      knee.setLimits(-KNEE_RANGE, KNEE_RANGE);
+      knee.configureMotorModel(RAPIER.MotorModel.ForceBased);
+      knee.setMotorMaxForce(maxTorque);
+      knee.configureMotorPosition(0, MOTOR_STIFFNESS, MOTOR_DAMPING);
+      this.joints.push({ joint: knee, parent: upper, child: lower, range: KNEE_RANGE, locked: false });
     }
     this.readJoints();
     this.prevAngles.set(this.angles);

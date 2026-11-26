@@ -16,9 +16,9 @@ export interface Settings {
   replaySpeed: number;
 }
 
-export const ENERGY_LEVELS = [0, 0.001, 0.002, 0.005, 0.01];
-export const STABILITY_LEVELS = [0, 0.25, 0.5, 1.5, 3];
-export const FALL_LEVELS = [0.5, 1, 2, 4, 6];
+export const ENERGY_LEVELS = [0, 0.0005, 0.001, 0.004, 0.01];
+export const STABILITY_LEVELS = [0, 0.1, 0.2, 0.8, 2];
+export const FALL_LEVELS = [0.5, 0.75, 1, 2.5, 5];
 export const SIGMA_LEVELS = [0.02, 0.04, 0.06, 0.09, 0.13];
 
 export function defaultSettings(): Settings {

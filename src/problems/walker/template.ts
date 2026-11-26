@@ -118,7 +118,7 @@ export const TEMPLATE = `
         <li><strong>Le score.</strong>
           <span class="formula walker-formula-inline">score = distance − énergie × poids ÷ 100 − pénalité si chute − poids × inclinaison moyenne</span>
           La distance est en mètres, l’énergie en joules (travail mécanique des moteurs : |couple × vitesse| additionné
-          au fil du temps). L’essai s’arrête si le torse touche le sol ou penche de plus de 69°.</li>
+          au fil du temps). L’essai s’arrête si le torse touche le sol ou penche de plus d’environ 70°.</li>
         <li><strong>Pourquoi des démarches bizarres ?</strong> Le score ne dit jamais « marche comme un humain ».
           Sautiller, traîner une jambe, avancer à petits pas pressés : tout ce qui avance sans tomber est bon à prendre.
           Et l’évolution améliore pas à pas le cerveau actuel : une fois un style trouvé, elle le perfectionne plutôt

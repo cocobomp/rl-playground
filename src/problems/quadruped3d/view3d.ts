@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { ThemeColors } from '../../shared/ui';
 import {
-  HIP_OFFSET,
   LOWER_HALF_LEN,
   LOWER_RADIUS,
   NUM_LEGS,
@@ -67,7 +66,7 @@ export class RobotView {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.className = 'quadruped3d-gl';
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -195,7 +194,7 @@ export class RobotView {
     this.groundTex.needsUpdate = true;
   }
 
-  private buildMarkers(): void {
+  private clearMarkers(): void {
     for (const child of [...this.markers.children]) {
       this.markers.remove(child);
       const m = child as THREE.Mesh | THREE.Sprite;
@@ -204,6 +203,10 @@ export class RobotView {
       mat.map?.dispose();
       mat.dispose();
     }
+  }
+
+  private buildMarkers(): void {
+    this.clearMarkers();
     const lineGeo = new THREE.PlaneGeometry(0.02, 3);
     const lineMat = new THREE.MeshBasicMaterial({ color: this.theme.muted || '#5b6475', transparent: true, opacity: 0.55 });
     const startMat = new THREE.MeshBasicMaterial({ color: this.theme.goal || '#2e9e5b' });
@@ -214,12 +217,10 @@ export class RobotView {
       this.markers.add(line);
       if (m >= 0) {
         const s = this.label(m === 0 ? 'départ' : `${m} m`);
-        s.position.set(m, 0.004, -1.75);
+        s.position.set(m, 0.004, 1.05);
         this.markers.add(s);
       }
     }
-    // Les géométries/matériaux partagés sont libérés une seule fois, à la fin.
-    this.disposables.push(lineGeo, lineMat, startMat);
   }
 
   /** Étiquette posée à plat sur le sol. */
@@ -236,7 +237,7 @@ export class RobotView {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
-    const geo = new THREE.PlaneGeometry(0.8, 0.3);
+    const geo = new THREE.PlaneGeometry(1, 0.375);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     return mesh;
@@ -305,11 +306,7 @@ export class RobotView {
 
   dispose(): void {
     this.controls.dispose();
-    for (const child of [...this.markers.children]) {
-      const m = child as THREE.Mesh;
-      const mat = m.material as THREE.Material & { map?: THREE.Texture | null };
-      mat.map?.dispose();
-    }
+    this.clearMarkers();
     const seen = new Set<{ dispose: () => void }>();
     for (const d of this.disposables) {
       if (seen.has(d)) continue;
