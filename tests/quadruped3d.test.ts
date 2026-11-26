@@ -1,6 +1,4 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   DEFAULT_REWARD,
   DEFAULT_WORLD,
@@ -19,12 +17,9 @@ import {
 import { BRAIN_SIZES, PARAM_COUNT, Trainer, evaluate, makePolicy, randomBrain } from '../src/problems/quadruped3d/agent';
 import { INTERVENTIONS, SCENARIOS, rewardOf, defaultSettings } from '../src/problems/quadruped3d/config';
 
-const load = (name: string) =>
-  JSON.parse(readFileSync(resolve(__dirname, `../src/problems/quadruped3d/pretrained/${name}.json`), 'utf8')) as {
-    sizes: number[];
-    distance: number;
-    params: number[];
-  };
+import { PRETRAINED_BROKEN, PRETRAINED_HEALTHY } from '../src/problems/quadruped3d/pretrained';
+
+const load = (name: 'healthy' | 'broken') => (name === 'healthy' ? PRETRAINED_HEALTHY : PRETRAINED_BROKEN);
 
 beforeAll(async () => {
   await initPhysics();

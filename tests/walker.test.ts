@@ -14,7 +14,7 @@ import {
   fitnessOf,
   runEpisode,
 } from '../src/problems/walker/env';
-import { evaluate, makeES, policyFromJSON, randomParams, runGeneration } from '../src/problems/walker/agent';
+import { BrainJSON, evaluate, makeES, policyFromJSON, randomParams, runGeneration } from '../src/problems/walker/agent';
 import { MLP } from '../src/shared/nn';
 import healthy from '../src/problems/walker/pretrained/healthy.json';
 import injured from '../src/problems/walker/pretrained/injured.json';
@@ -87,8 +87,8 @@ describe('environnement du marcheur', () => {
 });
 
 describe('cerveaux pré-entraînés', () => {
-  const healthyBrain = policyFromJSON(healthy);
-  const injuredBrain = policyFromJSON(injured);
+  const healthyBrain = policyFromJSON(healthy as BrainJSON);
+  const injuredBrain = policyFromJSON(injured as BrainJSON);
   const sane = runEpisode(healthyBrain, HEALTHY, DEFAULT_OBJECTIVES);
   const saneHurt = runEpisode(healthyBrain, KNEE_LOCKED, DEFAULT_OBJECTIVES);
   const adapted = runEpisode(injuredBrain, KNEE_LOCKED, DEFAULT_OBJECTIVES);
@@ -101,6 +101,11 @@ describe('cerveaux pré-entraînés', () => {
   it('avec le genou bloqué, le cerveau adapté fait mieux que le cerveau sain', () => {
     expect(adapted.distance).toBeGreaterThan(saneHurt.distance + 2);
     expect(adapted.fitness).toBeGreaterThan(saneHurt.fitness);
+  });
+
+  it('le cerveau adapté s’est spécialisé : sur le robot intact, il fait moins bien que le cerveau sain', () => {
+    const adaptedOnSane = runEpisode(injuredBrain, HEALTHY, DEFAULT_OBJECTIVES);
+    expect(adaptedOnSane.distance).toBeLessThan(sane.distance);
   });
 
   it('les fichiers restent légers', () => {

@@ -126,7 +126,8 @@ export const TEMPLATE = `
         <li><strong>Blessure et adaptation.</strong> Bloquer un genou change la physique, pas le cerveau : ses ordres au
           genou ne servent plus à rien et le rythme appris ne convient plus. « Réapprendre » repart du cerveau actuel,
           qui sait déjà garder l’équilibre et tenir un rythme : il suffit souvent de quelques dizaines de générations
-          pour retrouver une démarche correcte, alors que « Repartir de zéro » doit tout redécouvrir.</li>
+          pour retrouver une démarche correcte, alors que « Repartir de zéro » doit tout redécouvrir. Revers de la médaille :
+          le cerveau adapté se spécialise. Remis sur un robot intact, il marche moins bien qu’avant la blessure.</li>
         <li><strong>Limites honnêtes.</strong> Moteurs idéalisés, un seul terrain, aucune perturbation : un cerveau appris ici
           ne ferait pas marcher un vrai robot sans beaucoup d’autres précautions. L’« énergie » est le travail des moteurs,
           pas la consommation d’une vraie batterie.</li>

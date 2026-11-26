@@ -132,7 +132,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Un cerveau entraîné à l’avance (quelques centaines de générations) sur le robot intact. Regardez la démarche : elle n’a rien d’humain, mais elle avance vite et sans tomber. Notez la distance parcourue en 10 s.',
+      'Un cerveau entraîné à l’avance (environ 750 générations de 48 essais) sur le robot intact. Regardez la démarche : elle n’a rien d’humain (torse penché, pas rapides), mais elle avance vite, environ 27 m en 10 s, sans tomber. Notez cette distance dans le tableau des mesures.',
   },
   injuredBefore: {
     label: 'Blessure au genou : avant adaptation',
@@ -148,7 +148,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     brain: 'injured',
     autoTrain: false,
     description:
-      'Le cerveau a été réentraîné avec le genou bloqué, en partant du cerveau sain. Il a trouvé une nouvelle démarche qui compense la jambe raide. Comparez avec « avant adaptation » dans le tableau des mesures : la distance remonte, sans forcément égaler le robot intact.',
+      'Le cerveau a été réentraîné avec le genou bloqué, en partant du cerveau sain. Il a trouvé une nouvelle démarche qui compense la jambe raide. Comparez avec « avant adaptation » dans le tableau des mesures : on passe d’environ 11 m à environ 27 m, autant que le robot intact. Dans ce monde simplifié, une bonne démarche n’avait pas vraiment besoin de ce genou ! Essayez ensuite « Tout réparer » : ce cerveau spécialisé fait nettement moins bien sur le robot intact.',
   },
   scratch: {
     label: 'À vous de l’entraîner',

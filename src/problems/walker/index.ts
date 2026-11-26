@@ -681,7 +681,7 @@ export function mount(root: HTMLElement): () => void {
       msg =
         generation === 0
           ? 'Première génération en cours…'
-          : `Apprentissage en cours : génération ${generation} (${fmt(lastGenMs / 1000, 1)} s par génération, ${settings.es.popSize} variantes de 10 s chacune). Le robot affiché est le meilleur cerveau trouvé jusqu’ici.`;
+          : `Apprentissage en cours : génération ${generation} (${fmt(lastGenMs / 1000, 1)} s par génération, ${settings.es.popSize} essais de 10 s au plus). Le robot affiché est le meilleur cerveau trouvé jusqu’ici.`;
       worldChangedMsg = '';
     } else if (worldChangedMsg) msg = worldChangedMsg;
     else if (runStarted && generation > 0) msg = `En pause à la génération ${generation}.`;

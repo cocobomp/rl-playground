@@ -141,7 +141,7 @@ export const SCENARIOS: Scenario[] = [
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Cerveau pré-entraîné, corps intact. Observez le rythme régulier des pattes, cadencé par l’horloge interne (1,6 pas par seconde), et la distance atteinte en 8 secondes.',
+      'Cerveau pré-entraîné, corps intact. Observez le rythme régulier des pattes, cadencé par l’horloge interne (1,6 cycles par seconde), et la distance atteinte en 8 secondes.',
   },
   {
     id: 'injury',
@@ -150,16 +150,16 @@ export const SCENARIOS: Scenario[] = [
     brain: 'healthy',
     autoTrain: false,
     description:
-      'On casse la patte avant gauche, mais le cerveau reste celui du robot intact : il boite, dévie ou tombe. Cliquez sur « Réapprendre » : génération après génération, la courbe remonte car l’évolution garde les variantes qui compensent la patte manquante.',
+      'On casse la patte avant gauche, mais le cerveau reste celui du robot intact : il boite, dévie ou tombe. Cliquez sur « Réapprendre » : génération après génération, la note remonte car l’évolution garde les variantes qui compensent la patte manquante : d’abord ne plus tomber, puis avancer. Pressé ? Une fois la patte cassée, « Cerveau pré-entraîné » charge un cerveau déjà adapté hors ligne.',
   },
   {
-    id: 'ice',
-    label: 'Patinoire',
-    world: { friction: SLIPPERY_FRICTION },
+    id: 'knee',
+    label: 'Genou raide',
+    world: { lockedRearRightKnee: true },
     brain: 'healthy',
     autoTrain: false,
     description:
-      'Même cerveau, sol presque aussi glissant que la glace : regardez les pieds déraper. Lancez « Réapprendre » et observez si le robot trouve des appuis plus doux.',
+      'Le genou arrière droit est bloqué tendu. Le cerveau envoie les mêmes consignes qu’avant, mais une patte ne plie plus : la poussée est déséquilibrée et le robot piétine, dévie, voire recule. Regardez le nombre « distance » dans l’image, puis lancez « Réapprendre ».',
   },
   {
     id: 'scratch',
