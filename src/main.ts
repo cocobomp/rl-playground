@@ -100,8 +100,12 @@ async function route() {
     app.append(root);
     const unmount = mod.mount(root);
     // Profil Développeur : les « Paramètres experts » sont ouverts d'office.
+    let wasDev = false;
     const openExpert = () => {
-      if (getProfile() === 'dev') root.querySelectorAll<HTMLDetailsElement>('details.expert').forEach((d) => (d.open = true));
+      const dev = getProfile() === 'dev';
+      // On n'y touche qu'en entrant dans le profil Développeur ou en le quittant.
+      if (dev || wasDev) root.querySelectorAll<HTMLDetailsElement>('details.expert').forEach((d) => (d.open = dev));
+      wasDev = dev;
     };
     openExpert();
     const offProfile = onProfileChange(openExpert);

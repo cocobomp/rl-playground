@@ -26,6 +26,11 @@ export function renderHome(root: HTMLElement, problems: readonly ProblemInfo[]):
           <span class="intro-hint">Jamais fait de RL ? Commencez par le n°&nbsp;1, puis suivez le parcours.
             Un mot vous échappe&nbsp;? <a href="#/${GLOSSARY_ID}">Le glossaire</a>.</span>
         </p>
+        <p class="intro-profiles">
+          Choisissez votre profil dans la barre ci-dessus (curieux, étudiant, développeur ou décideur)&nbsp;: chaque étape
+          s’explique alors avec vos mots. Et pour savoir où le RL sert vraiment,
+          voyez <a href="#/applications">Dans la vraie vie</a>.
+        </p>
       </section>
       <h2 class="path-title">Le parcours : une idée par étape</h2>
       <ol class="cards path"></ol>
