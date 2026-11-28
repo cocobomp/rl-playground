@@ -700,3 +700,130 @@ button.active {
 .expert[open] summary {
   margin-bottom: 10px;
 }
+
+/* ---------- Profils de lecteur ---------- */
+.profile-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 0 0;
+  font-size: 0.9rem;
+}
+.profile-bar-label {
+  color: var(--muted);
+}
+.profile-seg button {
+  padding: 5px 12px;
+  font-size: 0.9rem;
+}
+.profile-bar-blurb {
+  color: var(--muted);
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.profile-panel {
+  margin-bottom: 16px;
+  border-left: 4px solid var(--accent);
+}
+.profile-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px 28px;
+}
+@media (max-width: 760px) {
+  .profile-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.profile-kicker {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-weight: 700;
+}
+.profile-intro {
+  margin: 0 0 10px;
+  font-size: 1.02rem;
+}
+.profile-sub {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.profile-watch,
+.profile-real-list {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+.profile-watch li,
+.profile-real-list li {
+  margin-bottom: 4px;
+}
+.profile-real-list {
+  font-size: 0.92rem;
+}
+.profile-takeaway {
+  margin: 0;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.profile-more,
+.app-links a {
+  color: var(--accent);
+}
+.profile-more {
+  font-size: 0.9rem;
+}
+
+/* Page « Dans la vraie vie » */
+.apps-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+@media (max-width: 400px) {
+  .apps-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.app-card h3 {
+  margin: 0 0 6px;
+  font-size: 1.08rem;
+}
+.app-story {
+  margin: 0 0 10px;
+}
+.app-rl {
+  margin: 0 0 10px;
+  display: grid;
+  gap: 6px;
+}
+.app-rl dt {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.app-rl dd {
+  margin: 0;
+  font-size: 0.93rem;
+}
+.app-angle {
+  margin: 0 0 8px;
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 12px;
+  font-size: 0.93rem;
+}
+.app-links {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}

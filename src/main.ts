@@ -2,7 +2,9 @@ import './style.css';
 import { PROBLEMS } from './problems/index';
 import { h } from './shared/ui';
 import { renderGlossary, renderHome, renderNext } from './shell/pages';
-import { GLOSSARY_ID, navId, parseRoute } from './shell/route';
+import { mountProfileBar, renderApplications, renderProfilePanel } from './shell/profile-ui';
+import { getProfile, onProfileChange } from './shell/profiles';
+import { APPLICATIONS_ID, GLOSSARY_ID, navId, parseRoute } from './shell/route';
 
 // Mode intégré (iframe) : ?embed=1 masque le titre du site et le pied de page,
 // garde le menu des problèmes et les explications, et annonce la hauteur de la
@@ -37,7 +39,8 @@ function buildNav() {
     a.textContent = `${i + 1}. ${p.title}`;
     nav.append(a);
   });
-  nav.append(h(`<a href="#/${GLOSSARY_ID}" data-id="${GLOSSARY_ID}" class="nav-glossary">Glossaire</a>`));
+  nav.append(h(`<a href="#/${APPLICATIONS_ID}" data-id="${APPLICATIONS_ID}" class="nav-glossary">Dans la vraie vie</a>`));
+  nav.append(h(`<a href="#/${GLOSSARY_ID}" data-id="${GLOSSARY_ID}">Glossaire</a>`));
 }
 
 let firstRoute = true;
@@ -68,6 +71,11 @@ async function route() {
     renderGlossary(app, PROBLEMS, r.term);
     return;
   }
+  if (r.kind === 'applications') {
+    document.title = 'Dans la vraie vie · Bac à sable RL';
+    cleanup = renderApplications(app, PROBLEMS);
+    return;
+  }
   const problem = r.kind === 'problem' ? PROBLEMS.find((p) => p.id === r.id) : undefined;
   if (!problem) {
     document.title = 'Bac à sable RL';
@@ -79,6 +87,9 @@ async function route() {
   head.querySelector('h2')!.textContent = problem.title;
   head.querySelector('.lead')!.textContent = `${problem.tagline} ${problem.concept}`;
   app.append(head);
+  const panel = renderProfilePanel(problem, PROBLEMS);
+  app.append(panel.el);
+  cleanup = panel.dispose;
   const loading = h(`<p class="loading">Chargement…</p>`);
   app.append(loading);
   try {
@@ -87,7 +98,18 @@ async function route() {
     loading.remove();
     const root = h(`<div class="problem-root"></div>`);
     app.append(root);
-    cleanup = mod.mount(root);
+    const unmount = mod.mount(root);
+    // Profil Développeur : les « Paramètres experts » sont ouverts d'office.
+    const openExpert = () => {
+      if (getProfile() === 'dev') root.querySelectorAll<HTMLDetailsElement>('details.expert').forEach((d) => (d.open = true));
+    };
+    openExpert();
+    const offProfile = onProfileChange(openExpert);
+    cleanup = () => {
+      offProfile();
+      panel.dispose();
+      unmount();
+    };
     // Rendu par le shell, après le problème : aucun code de problème à modifier.
     app.append(renderNext(PROBLEMS, problem));
   } catch (err) {
@@ -98,5 +120,6 @@ async function route() {
 }
 
 buildNav();
+mountProfileBar(document.getElementById('profile-bar')!);
 window.addEventListener('hashchange', route);
 route();

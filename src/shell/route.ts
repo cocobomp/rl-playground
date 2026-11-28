@@ -3,9 +3,11 @@
 export type Route =
   | { kind: 'home' }
   | { kind: 'glossary'; term?: string }
+  | { kind: 'applications' }
   | { kind: 'problem'; id: string };
 
 export const GLOSSARY_ID = 'glossaire';
+export const APPLICATIONS_ID = 'applications';
 
 /**
  * Lit un hash d'URL (« #/grid », « #/glossaire/gamma »…).
@@ -18,6 +20,7 @@ export function parseRoute(hash: string, problemIds: readonly string[]): Route {
     const term = parts[1] ? decodeURIComponentSafe(parts[1]) : '';
     return term ? { kind: 'glossary', term } : { kind: 'glossary' };
   }
+  if (id === APPLICATIONS_ID) return { kind: 'applications' };
   if (id && problemIds.includes(id)) return { kind: 'problem', id };
   return { kind: 'home' };
 }
@@ -26,6 +29,7 @@ export function parseRoute(hash: string, problemIds: readonly string[]): Route {
 export function navId(route: Route): string {
   if (route.kind === 'problem') return route.id;
   if (route.kind === 'glossary') return GLOSSARY_ID;
+  if (route.kind === 'applications') return APPLICATIONS_ID;
   return '';
 }
 
